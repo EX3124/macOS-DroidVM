@@ -20,14 +20,18 @@ PATCHES = [PATCH, ROOT / 'patches/darwinboot-accept-arm64e.patch']
 
 
 def main():
-    for source in (EDK2 / 'BaseTools/Source/C/bin/GenFw', ROOT / 'sources/GunyahBootPkg/GunyahBoot.dsc'):
-        if not source.exists():
-            raise SystemExit(f'missing {source}')
+    genfw = EDK2 / 'BaseTools/Source/C/bin/GenFw'
+    if not genfw.exists():
+        raise SystemExit(f'missing {genfw}')
     driver = WORK / 'DarwinBoot'
     shutil.rmtree(driver, ignore_errors=True)
     shutil.copytree(ROOT / 'sources/UniXNU/drivers/DarwinBoot', driver, ignore=shutil.ignore_patterns('.git'))
     for patch in PATCHES:
         subprocess.run(['patch', '-p1', '--no-backup-if-mismatch', '-i', str(patch)], cwd=driver, check=True)
+    # GunyahBootPkg is the local firmware platform (sources/ only, not published); CI builds the same driver with the
+    # DSC of the DarwinBoot package itself (UniXNU/DarwinBoot), which provides the MdePkg library classes it needs.
+    gunyah = ROOT / 'sources/GunyahBootPkg/GunyahBoot.dsc'
+    platform = 'GunyahBootPkg/GunyahBoot.dsc' if gunyah.exists() else 'DarwinBootPkg/DarwinBoot.dsc'
     workspace = WORK / 'ws'
     shutil.rmtree(workspace, ignore_errors=True)
     workspace.mkdir(parents=True)
@@ -35,7 +39,7 @@ def main():
                PACKAGES_PATH=':'.join([str(ROOT / 'sources'), str(EDK2), str(ROOT / 'sources/UniXNU/package'), str(driver)]),
                GCC_AARCH64_PREFIX='aarch64-linux-gnu-')
     command = ('set +u; source "$1/edksetup.sh" BaseTools; set -u; '
-               'build -p GunyahBootPkg/GunyahBoot.dsc -m DarwinBootPkg/Driver/DarwinBoot.inf -a AARCH64 -b DEBUG -t GCC -n 4')
+               f'build -p {platform} -m DarwinBootPkg/Driver/DarwinBoot.inf -a AARCH64 -b DEBUG -t GCC -n 4')
     subprocess.run(['bash', '-c', command, 'bash', str(EDK2)], cwd=ROOT, env=env, check=True)
     efi = next(workspace.rglob('DarwinBootPkg/Driver/DarwinBoot/OUTPUT/DarwinBoot.efi'))
     destination = ROOT / 'artifacts/boot-inputs/DarwinBoot.efi'
