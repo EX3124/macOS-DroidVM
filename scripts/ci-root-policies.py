@@ -2,11 +2,11 @@
 """CI helper: OS.raw and SYSTEMOS.dmg from the board IPSW, for make-virt-root.py.
 
 Extracts the OS and Cryptex1,SystemOS members through the UniXNU Ipsw machinery
-(the sha256 pins of board.toml apply), then expands the UDIF OS image to a raw
-disk with hdiutil convert (macOS runner) and copies the SystemOS cryptex member
-as is (it is already a raw APFS container).
+(the sha256 pins of board.toml apply), then expands the UDIF OS image with
+scripts/udif-expand.py (the raw GPT + APFS disk that make-virt-root.py documents
+and the owner policies pin: hdiutil's UDRW conversion hashes differently) and
+copies the SystemOS cryptex member as is (it is already a raw APFS container).
 """
-import glob
 import shutil
 import subprocess
 import sys
@@ -31,11 +31,8 @@ def main():
     ipsw = Ipsw(Ctx())
     os_dmg = ipsw.extract('OS')
     systemos = ipsw.extract('Cryptex1,SystemOS')
-    subprocess.run(['hdiutil', 'convert', str(os_dmg), '-format', 'UDRW', '-o', 'OSraw'], check=True)
-    converted = [p for p in glob.glob('OSraw*')]
-    if len(converted) != 1:
-        raise SystemExit(f'hdiutil convert produced {converted}')
-    shutil.move(converted[0], 'OS.raw')
+    expander = Path(__file__).resolve().with_name('udif-expand.py')
+    subprocess.run([sys.executable, str(expander), str(os_dmg), 'OS.raw'], check=True)
     shutil.copyfile(systemos, 'SYSTEMOS.dmg')
     for name in ('OS.raw', 'SYSTEMOS.dmg'):
         print(f'{name}: {Path(name).stat().st_size} bytes')

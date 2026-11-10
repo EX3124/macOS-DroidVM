@@ -14,6 +14,7 @@ import ctypes
 import ctypes.util
 import hashlib
 import lzma
+import os
 import plistlib
 import struct
 import sys
@@ -25,8 +26,22 @@ parser.add_argument('output')
 parser.add_argument('--sha256', help='expected SHA-256 of the raw disk')
 args = parser.parse_args()
 
-library = ctypes.util.find_library('lzfse') or 'liblzfse.so'
-lzfse = ctypes.CDLL(library)
+
+def load_lzfse():
+    """liblzfse from LZFSE_LIB, the loader path, or the usual Homebrew/system prefixes."""
+    candidates = [os.environ.get('LZFSE_LIB'), ctypes.util.find_library('lzfse'),
+                  '/opt/homebrew/lib/liblzfse.dylib', '/usr/local/lib/liblzfse.dylib', 'liblzfse.so']
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            return ctypes.CDLL(candidate)
+        except OSError:
+            continue
+    raise SystemExit('liblzfse not found: install lzfse (brew install lzfse) or set LZFSE_LIB')
+
+
+lzfse = load_lzfse()
 lzfse.lzfse_decode_buffer.restype = ctypes.c_size_t
 lzfse.lzfse_decode_buffer.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p]
 lzfse.lzfse_decode_scratch_size.restype = ctypes.c_size_t
