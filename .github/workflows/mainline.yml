@@ -65,8 +65,12 @@ jobs:
     name: ensure owner policies
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    outputs:
+      # '1' when this run started (or joined) macos-disks: the dispatch job then leaves the disks alone for this run.
+      macos_disks: ${{ steps.ensure.outputs.macos_disks }}
     steps:
       - name: Ensure the policy releases
+        id: ensure
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -126,12 +130,15 @@ jobs:
             started_root=1
           fi
 
+          macos_disks=0
           if [ "$started_root" = 1 ] || ! has_asset root-policies-macos verified-root-inputs.tar.gz || \
              ! gh api "repos/$GH_REPO/contents/out/owner/macos-root-pins.json?ref=$REF" >/dev/null 2>&1; then
+            macos_disks=1
             start_or_join macos-disks.yml
             has_asset root-policies-macos verified-root-inputs.tar.gz || \
               { echo "::error::root-policies-macos/verified-root-inputs.tar.gz is still missing"; exit 1; }
           fi
+          echo "macos_disks=$macos_disks" >> "$GITHUB_OUTPUT"
 
   kernel:
     needs: policies
@@ -347,12 +354,14 @@ jobs:
           REF: ${{ github.ref_name }}
           KERNEL_RESULT: ${{ needs.kernel.result }}
           KERNEL_RUN: ${{ github.run_id }}
+          MACOS_DISKS_BUILT: ${{ needs.policies.outputs.macos_disks }}
         run: |
           # Manual only (and skipped below): mainline.yml is this run; kernel.yml is the legacy baseline build of
           # device/UniXNU-droidvm (its header says manual only); bootstrap.yml is the one-shot import of the upstream
           # macOS branch; quick-publish.yml publishes an artifact and tag chosen by hand (required inputs).
           # root-policies.yml rotates the owner key, so only the policies job starts it, and only when its release is
-          # missing (macos-disks.yml stays here: it refreshes the disks and reuses the existing owner key).
+          # missing. macos-disks.yml refreshes the disks and reuses the existing owner key, but when the policies job
+          # already ran it for this build (missing release/pins) it is skipped here, so it runs once per mainline.
           skip=" mainline.yml kernel.yml bootstrap.yml quick-publish.yml root-policies.yml "
           # These consume this run's artifacts (publish-release) or published releases (bootdisk-build): not started
           # when the kernel job failed.
@@ -362,6 +371,10 @@ jobs:
           for path in ci/.github/workflows/*.yml; do
             workflow=$(basename "$path")
             case "$skip" in *" $workflow "*) echo "skip $workflow (manual only)"; continue;; esac
+            if [ "$workflow" = macos-disks.yml ] && [ "${MACOS_DISKS_BUILT:-0}" = 1 ]; then
+              echo "skip $workflow (already run by the policies job)"
+              continue
+            fi
             case "$after_success" in
               *" $workflow "*)
                 if [ "$KERNEL_RESULT" != success ]; then
