@@ -43,7 +43,8 @@ def main():
     env['PATH'] = str(EDK2 / 'BaseTools/BinWrappers/PosixLike') + os.pathsep + env['PATH']
     conf = workspace / 'Conf'
     conf.mkdir(parents=True, exist_ok=True)
-    for template, name in (('target.template', 'target.txt'), ('tools_def.template', 'tools_def.txt')):
+    for template, name in (('target.template', 'target.txt'), ('tools_def.template', 'tools_def.txt'),
+                           ('build_rule.template', 'build_rule.txt')):
         source = EDK2 / 'BaseTools/Conf' / template
         if source.exists() and not (conf / name).exists():
             shutil.copyfile(source, conf / name)
