@@ -4,15 +4,15 @@
     "blocks_verified": 2660361,
     "image_bytes": 10896836096,
     "volume_uuid": "04769D26-2CA0-4825-B443-E2E5F88300F2",
-    "trusted_key_sha256": "470ee16eaf21276e93258c9e7d09fc1ce5c382d66b440ad039be5e40deb65921",
-    "manifest_sha256": "4d43291ff64ab7f204f338b85e2586e90e61630a9d012e1991c1a071e3ee6150"
+    "trusted_key_sha256": "8c51d1148bbe53283c3665a56db6715de494077dd48cbc3c62be264f8ac65201",
+    "manifest_sha256": "34b98fe9b60664353f5855866fce6949195afc7035924fd524d970ece3f8eb2e"
   },
   "systemos": {
-    "image_sha256": "d0c2c6a36b8aa75fc558055efd311d9f6c27152f4a7d58d24f86fbf9993b57f6",
+    "image_sha256": "35ceb209b218a65fb3562ac1242b6604b0f6786b5513763ff6777584042cd3f6",
     "blocks_verified": 1835008,
     "image_bytes": 7516192768,
     "volume_uuid": "8846FE78-2910-4297-AF97-D59BB6F8FC16",
-    "trusted_key_sha256": "470ee16eaf21276e93258c9e7d09fc1ce5c382d66b440ad039be5e40deb65921",
-    "manifest_sha256": "f4c70d394a51b7ab3da67514063eb88866c0b5003c9f8a97590a8bf3fb84ef1c"
+    "trusted_key_sha256": "8c51d1148bbe53283c3665a56db6715de494077dd48cbc3c62be264f8ac65201",
+    "manifest_sha256": "2d5e046765667db2667a51469a59953143aaeb8af5ef7fa25468799ffe406422"
   }
 }
