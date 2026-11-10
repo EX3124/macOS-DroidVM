@@ -11,8 +11,8 @@ name: mainline
 #
 # Two kernels per run: root=ios (iPadOS 21H461) and root=macos (macOS 14.6.1 23G93 userland on the same kernel and kexts).
 # They differ only in the owner root policies baked into the kernel: release root-policies and root-policies-macos.
-# Both releases must exist before a run: root-policies.yml publishes the iOS one, macos-disks.yml the macOS one (after
-# downloading the owner-keys.tar.gz of root-policies).
+# The policies job at the top ensures both releases: when one is missing it starts its producer (root-policies.yml, then
+# macos-disks.yml, which reuses the owner key of the first) and waits for it before the kernel starts.
 
 on:
   workflow_dispatch:
@@ -49,7 +49,84 @@ permissions:
   actions: write
 
 jobs:
+  # The kernel links the owner policies of the OS/SystemOS disks, so the root-policies (iOS) and root-policies-macos
+  # (macOS) releases must exist before it builds. When one is missing this job starts its producer and waits:
+  # root-policies.yml generates the owner key and the iOS policies, macos-disks.yml reuses that key for the macOS disks
+  # (and commits out/owner/macos-root-pins.json to the branch, which the kernel job then checks out).
+  policies:
+    name: ensure owner policies
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Ensure the policy releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          has_asset() {
+            gh release view "$1" -R "$GH_REPO" --json assets --jq '.assets[].name' 2>/dev/null | grep -qxF "$2"
+          }
+
+          wait_run() {
+            run=$1 workflow=$2
+            echo "waiting for $workflow run $run: https://github.com/$GH_REPO/actions/runs/$run"
+            while :; do
+              status=$(gh run view "$run" -R "$GH_REPO" --json status --jq '.status')
+              if [ "$status" = completed ]; then
+                conclusion=$(gh run view "$run" -R "$GH_REPO" --json conclusion --jq '.conclusion')
+                if [ "$conclusion" != success ]; then
+                  echo "::error::$workflow run $run finished: $conclusion"
+                  return 1
+                fi
+                echo "$workflow run $run: success"
+                return 0
+              fi
+              sleep 30
+            done
+          }
+
+          start_or_join() {
+            workflow=$1
+            # Join the run already building these policies on this branch, or start one.
+            run=$(gh run list -R "$GH_REPO" --workflow "$workflow" --branch "$REF" --limit 20 \
+                    --json databaseId,status --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
+            if [ -z "$run" ]; then
+              echo "dispatching $workflow on $REF"
+              gh workflow run "$workflow" --ref "$REF"
+              for _ in $(seq 1 24); do
+                sleep 5
+                run=$(gh run list -R "$GH_REPO" --workflow "$workflow" --branch "$REF" --limit 1 \
+                        --json databaseId,status --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
+                if [ -n "$run" ]; then break; fi
+              done
+            fi
+            if [ -z "$run" ]; then
+              echo "::error::could not start $workflow"
+              return 1
+            fi
+            wait_run "$run" "$workflow"
+          }
+
+          started_root=0
+          if ! has_asset root-policies verified-root-inputs.tar.gz; then
+            start_or_join root-policies.yml
+            has_asset root-policies verified-root-inputs.tar.gz || \
+              { echo "::error::root-policies/verified-root-inputs.tar.gz is still missing"; exit 1; }
+            started_root=1
+          fi
+
+          if [ "$started_root" = 1 ] || ! has_asset root-policies-macos verified-root-inputs.tar.gz || \
+             ! gh api "repos/$GH_REPO/contents/out/owner/macos-root-pins.json?ref=$REF" >/dev/null 2>&1; then
+            start_or_join macos-disks.yml
+            has_asset root-policies-macos verified-root-inputs.tar.gz || \
+              { echo "::error::root-policies-macos/verified-root-inputs.tar.gz is still missing"; exit 1; }
+          fi
+
   kernel:
+    needs: policies
     runs-on: macos-26
     timeout-minutes: 340
     strategy:
@@ -71,6 +148,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: ci
+          # The policies job may commit out/owner/macos-root-pins.json to this branch while it waits for macos-disks;
+          # check out the branch as it is now, not the commit that triggered the run.
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:
@@ -239,11 +319,11 @@ jobs:
 
   # One pipeline per mainline run: when the kernel job is over, start the other workflows of the repository. The files
   # under .github/workflows are enumerated, so a new workflow is picked up without editing this job; the ones that must
-  # stay manual are skipped below.
+  # stay manual (or that the policies job starts on demand) are skipped below.
   dispatch:
     name: dispatch other workflows
-    needs: kernel
-    if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.trigger_downstream) }}
+    needs: [policies, kernel]
+    if: ${{ always() && needs.policies.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.trigger_downstream) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -263,7 +343,9 @@ jobs:
           # Manual only (and skipped below): mainline.yml is this run; kernel.yml is the legacy baseline build of
           # device/UniXNU-droidvm (its header says manual only); bootstrap.yml is the one-shot import of the upstream
           # macOS branch; quick-publish.yml publishes an artifact and tag chosen by hand (required inputs).
-          skip=" mainline.yml kernel.yml bootstrap.yml quick-publish.yml "
+          # root-policies.yml rotates the owner key, so only the policies job starts it, and only when its release is
+          # missing (macos-disks.yml stays here: it refreshes the disks and reuses the existing owner key).
+          skip=" mainline.yml kernel.yml bootstrap.yml quick-publish.yml root-policies.yml "
           # These consume this run's artifacts (publish-release) or published releases (bootdisk-build): not started
           # when the kernel job failed.
           after_success=" publish-release.yml bootdisk-build.yml "
