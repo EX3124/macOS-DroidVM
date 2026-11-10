@@ -1,0 +1,18 @@
+{
+  "os": {
+    "image_sha256": "521945de060983ca09bd9a3f1541fe61d9e8c2fa385bc8a41b396936f19f1827",
+    "blocks_verified": 2660361,
+    "image_bytes": 10896836096,
+    "volume_uuid": "04769D26-2CA0-4825-B443-E2E5F88300F2",
+    "trusted_key_sha256": "e0bd1f04d58d3f4e2baa4e4641a4cc24641292b2286dd0b6da772885dffb1fc9",
+    "manifest_sha256": "b1f58482e251f7dafc11b2c082f6f27c3d09d91ea645974bcb51b74bff5834c1"
+  },
+  "systemos": {
+    "image_sha256": "9b4e1603d9919bc0f2fcb248563886ff662dec0acb00d0a776b5f13d34d44188",
+    "blocks_verified": 1835008,
+    "image_bytes": 7516192768,
+    "volume_uuid": "8846FE78-2910-4297-AF97-D59BB6F8FC16",
+    "trusted_key_sha256": "e0bd1f04d58d3f4e2baa4e4641a4cc24641292b2286dd0b6da772885dffb1fc9",
+    "manifest_sha256": "4d669b82abdd5ec777fd4b4a51df91e9ecc619880205fa1d79eb8045fdab7c54"
+  }
+}
