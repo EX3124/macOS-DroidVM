@@ -8,8 +8,8 @@
 OS.raw is the IPSW OS image expanded with udif-expand.py (GPT + APFS), SYSTEMOS.dmg the Cryptex1,SystemOS member as is
 (a raw APFS container). Both are served read-only as virtio-blk disks. KEYDIR holds owner.pem / owner-public.pem
 (RSA-3072, e65537); the private key never leaves the host. OUTDIR receives what build-virt-verified-root.py consumes
-(os.manifest.bin, systemos.manifest.bin, trusted-key.bin, os.samples.bin, inputs.json) and verified-root-inputs.tar.enc,
-the same files encrypted with the CI artifact key, to publish as a release asset of the CI repository.
+(os.manifest.bin, systemos.manifest.bin, trusted-key.bin, os.samples.bin, inputs.json) and verified-root-inputs.tar.gz
+(the same files archived), to publish as a release asset of the CI repository.
 
 The first form does both steps on one host. The split form hashes where the images are and signs where the key is; only
 OUTDIR (the block hash tables, about 8 bytes per KiB of image) moves between them.
@@ -33,7 +33,6 @@ from manifest import public_anchor  # noqa: E402
 
 OS_UUID = os.environ.get('OS_UUID', '04769D26-2CA0-4825-B443-E2E5F88300F2')        # the 21H461 OS volume
 SYSTEMOS_UUID = os.environ.get('SYSTEMOS_UUID', '8846FE78-2910-4297-AF97-D59BB6F8FC16')  # the 21H461 SystemOS volume
-KEY_FILE = Path(os.environ.get('ARTIFACT_KEY_FILE', '/home/bigfoot/unixnu-droidvm/.ci-artifact-key'))
 NAMES = (('os', OS_UUID), ('systemos', SYSTEMOS_UUID))
 
 
@@ -110,10 +109,8 @@ def sign_step(keys, out):
     with tarfile.open(out / 'verified-root-inputs.tar.gz', 'w:gz') as archive:
         for member in members:
             archive.add(out / member, arcname=member)
-    subprocess.run(['openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-salt', '-pass', f'file:{KEY_FILE}',
-                    '-in', out / 'verified-root-inputs.tar.gz', '-out', out / 'verified-root-inputs.tar.enc'], check=True)
-    digest = hashlib.sha256((out / 'verified-root-inputs.tar.enc').read_bytes()).hexdigest()
-    print(f'{out / "verified-root-inputs.tar.enc"}: sha256 {digest}')
+    digest = hashlib.sha256((out / 'verified-root-inputs.tar.gz').read_bytes()).hexdigest()
+    print(f'{out / "verified-root-inputs.tar.gz"}: sha256 {digest}')
 
 
 if len(sys.argv) == 6 and sys.argv[1] == 'hash':

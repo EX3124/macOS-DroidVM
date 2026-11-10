@@ -1,12 +1,12 @@
 name: mainline
 
 # Builds the kernel of the DroidVM mainline: Droid-VM/UniXNU-droidvm (device) with Droid-VM/UniXNU (wip/droidvm), plus the
-# diagnostic XNU patches of overlay/droidvm/patches/xnu and the drivers of overlay/droidvm/drivers (virtio-pci). The kernel links Apple kexts from the IPSW kernelcache, so binaries
-# are uploaded encrypted with the ARTIFACT_KEY secret; only logs are plain.
+# diagnostic XNU patches of overlay/droidvm/patches/xnu and the drivers of overlay/droidvm/drivers (virtio-pci). The kernel
+# links Apple kexts from the IPSW kernelcache, so binaries are uploaded as plain artifacts (no encryption key).
 #
 # The device's original-class audits read build/reference-candidate/kernel.{macho,json}, a prelinked kernel of the board
-# without its native storage/display drivers. It is kept encrypted as the release asset reference-candidate/
-# reference-kernel.tgz.enc; when missing (or with rebuild_reference) it is linked first from a reduced copy of the device
+# without its native storage/display drivers. It is kept as the release asset reference-candidate/reference-kernel.tgz;
+# when missing (or with rebuild_reference) it is linked first from a reduced copy of the device
 # repository (scripts/make-reference-device.py) in the same tree.
 #
 # Two kernels per run: root=ios (iPadOS 21H461) and root=macos (macOS 14.6.1 23G93 userland on the same kernel and kexts).
@@ -59,7 +59,6 @@ jobs:
       DEVICE_REF: ${{ inputs.device_ref || 'wip/hackintosh' }}
       REBUILD_REFERENCE: ${{ inputs.rebuild_reference || false }}
       GH_TOKEN: ${{ github.token }}
-      ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,12 +131,12 @@ jobs:
           gh api "$api/EXTERNAL_HEADERS/TrustCache?ref=xnu-8796.101.5" > "$sources/xnu-trustcache-8796.101.5.json"
 
       - name: Owner root policies
-        # build/verified-root-{os,systemos} from the owner manifests published encrypted as $POLICIES/verified-root-inputs.tar.enc.
+        # build/verified-root-{os,systemos} from the owner manifests published as $POLICIES/verified-root-inputs.tar.gz.
         run: |
-          gh release download "$POLICIES" --repo "$GITHUB_REPOSITORY" --pattern verified-root-inputs.tar.enc --dir "$RUNNER_TEMP"
+          gh release download "$POLICIES" --repo "$GITHUB_REPOSITORY" --pattern verified-root-inputs.tar.gz --dir "$RUNNER_TEMP"
           inputs="$RUNNER_TEMP/verified-root-inputs"
           mkdir -p "$inputs"
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY -in "$RUNNER_TEMP/verified-root-inputs.tar.enc" | tar -xz -C "$inputs"
+          tar -xzf "$RUNNER_TEMP/verified-root-inputs.tar.gz" -C "$inputs"
           python3 ci/scripts/owner-policy-dirs.py "$inputs" "UniXNU/out/$BOARD/tree" "${{ matrix.root }}"
           if [ "${{ matrix.root }}" = macos ]; then
             python3 ci/scripts/macos-root-probe.py UniXNU/scripts/build-verified-root-probe.py device/scripts/build-verified-root-probe.py
@@ -150,8 +149,8 @@ jobs:
           ref="out/$BOARD/tree/build/reference-candidate"
           mkdir -p "$ref"
           if [ "$REBUILD_REFERENCE" != true ] && gh release download reference-candidate --repo "$GITHUB_REPOSITORY" \
-               --pattern reference-kernel.tgz.enc --dir "$RUNNER_TEMP" 2>/dev/null; then
-            openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY -in "$RUNNER_TEMP/reference-kernel.tgz.enc" | tar -xz -C "$ref"
+               --pattern reference-kernel.tgz --dir "$RUNNER_TEMP" 2>/dev/null; then
+            tar -xzf "$RUNNER_TEMP/reference-kernel.tgz" -C "$ref"
             echo "reference candidate from the release asset"
           else
             ./unixnu defconfig "${BOARD}_defconfig" -D ../device-ref
@@ -159,12 +158,10 @@ jobs:
             ./unixnu build kernel $jobs
             cp "out/$BOARD/kernel/kernel.macho" "out/$BOARD/kernel/kernel.json" "$ref/"
             tar -czf "$RUNNER_TEMP/reference-kernel.tgz" -C "$ref" kernel.macho kernel.json
-            openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY -in "$RUNNER_TEMP/reference-kernel.tgz" \
-              -out "$RUNNER_TEMP/reference-kernel.tgz.enc"
             gh release view reference-candidate --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-              gh release create reference-candidate --repo "$GITHUB_REPOSITORY" --title "reference candidate (encrypted)" \
-                --notes "Prelinked DroidVM kernel without native storage/display drivers, AES-256 encrypted."
-            gh release upload reference-candidate "$RUNNER_TEMP/reference-kernel.tgz.enc" --repo "$GITHUB_REPOSITORY" --clobber
+              gh release create reference-candidate --repo "$GITHUB_REPOSITORY" --title "reference candidate" \
+                --notes "Prelinked DroidVM kernel without native storage/display drivers."
+            gh release upload reference-candidate "$RUNNER_TEMP/reference-kernel.tgz" --repo "$GITHUB_REPOSITORY" --clobber
             # The full build starts again from the device repository; its kernel replaces this one.
             mkdir -p "$RUNNER_TEMP/logs-reference"
             cp -R "out/$BOARD/logs/." "$RUNNER_TEMP/logs-reference/" || true
@@ -195,10 +192,7 @@ jobs:
           fi
           [ -d "$board/kernel" ] && tar -czf kernel.tgz -C "$board" kernel || true
           [ -s collect/build.tar ] && gzip -c collect/build.tar > build.tgz || true
-          for name in kernel build; do
-            [ -s $name.tgz ] && openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY -in $name.tgz -out $name.tgz.enc
-          done
-          ls -la collect *.tgz* || true
+          ls -la collect *.tgz || true
 
       - name: Upload logs
         if: always()
@@ -211,22 +205,22 @@ jobs:
             collect/sources.txt
           if-no-files-found: ignore
 
-      - name: Upload kernel (encrypted)
+      - name: Upload kernel
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ env.LABEL }}
-          path: kernel.tgz.enc
+          path: kernel.tgz
           if-no-files-found: ignore
           compression-level: 0
           retention-days: 14
 
-      - name: Upload build (encrypted)
+      - name: Upload build
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ env.LABEL }}
-          path: build.tgz.enc
+          path: build.tgz
           if-no-files-found: ignore
           compression-level: 0
           retention-days: 7
