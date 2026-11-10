@@ -44,6 +44,8 @@ on:
       - 'overlay/droidvm/drivers/**'
       - 'overlay/droidvm/scripts/**'
       - 'scripts/apply-overlay-board.py'
+      - 'scripts/ci-root-policies.py'
+      - 'scripts/udif-expand.py'
       - '.github/workflows/mainline.yml'
       - 'scripts/make-reference-device.py'
       - 'scripts/owner-policy-dirs.py'
