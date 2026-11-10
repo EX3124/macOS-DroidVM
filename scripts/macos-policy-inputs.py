@@ -4,7 +4,7 @@
     macos-policy-inputs.py [--output out/owner/inputs]
 
 Writes os.manifest.bin, systemos.manifest.bin, trusted-key.bin, os.samples.bin and inputs.json (the layout of
-make-virt-root.py, without its CI-key encryption) from out/owner/{os,systemos}-23G93 and macos-root-pins.json.
+make-virt-root.py) from out/owner/{os,systemos}-23G93 and macos-root-pins.json.
 """
 import argparse
 import os

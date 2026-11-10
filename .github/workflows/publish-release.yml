@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       disks_run:
-        description: macos-disks run id (os-disk / systemos-disk artifacts)
-        default: '42387849360'
+        description: macos-disks run id (os-disk / systemos-disk artifacts); empty = latest successful macos-disks run
+        default: ''
       kernel_run:
-        description: mainline run id (kernel-mainline-macos artifact)
-        default: '42393995268'
+        description: mainline run id (kernel-mainline-macos artifact); empty = latest successful mainline run
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -19,29 +19,41 @@ jobs:
     steps:
       - name: Download kernel artifact
         run: |
-          gh run download "${{ inputs.kernel_run }}" -R "$GITHUB_REPOSITORY" \
+          run="${{ inputs.kernel_run }}"
+          if [ -z "$run" ]; then
+            run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow mainline.yml --status success --limit 1 \
+              --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "mainline run: $run"
+          gh run download "$run" -R "$GITHUB_REPOSITORY" \
             -n kernel-mainline-macos -D "$RUNNER_TEMP/kernel"
           ls -la "$RUNNER_TEMP/kernel"
 
       - name: Publish kernel release
         run: |
           cd "$RUNNER_TEMP/kernel"
-          f=$(ls *.enc 2>/dev/null || ls | head -1)
+          f=$(ls kernel.tgz 2>/dev/null || ls | head -1)
           sha=$(shasum -a 256 "$f" | cut -d' ' -f1)
           if gh release view macos-23G93-kernel -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload macos-23G93-kernel -R "$GITHUB_REPOSITORY" "$f" --clobber
           else
             gh release create macos-23G93-kernel -R "$GITHUB_REPOSITORY" "$f" \
-              --title "macOS 23G93 kernel (mainline, encrypted)" \
-              --notes "sha256: $sha  |  decrypt: openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:ARTIFACT_KEY -in $f"
+              --title "macOS 23G93 kernel (mainline)" \
+              --notes "sha256: $sha"
           fi
           echo "published: $f ($sha)"
 
       - name: Download + split disks
         run: |
           D="$RUNNER_TEMP/disks"; mkdir -p "$D"
+          disks_run="${{ inputs.disks_run }}"
+          if [ -z "$disks_run" ]; then
+            disks_run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow macos-disks.yml --status success --limit 1 \
+              --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "macos-disks run: $disks_run"
           for a in os-disk-23G93 systemos-disk-23G93; do
-            gh run download "${{ inputs.disks_run }}" -R "$GITHUB_REPOSITORY" -n "$a" -D "$D/$a"
+            gh run download "$disks_run" -R "$GITHUB_REPOSITORY" -n "$a" -D "$D/$a"
             f=$(ls "$D/$a" | head -1)
             mv "$D/$a/$f" "$D/$f"; rm -rf "$D/$a"
             echo "-- $f: $(stat -f%z "$D/$f") bytes"
@@ -64,7 +76,7 @@ jobs:
             gh release upload macos-23G93-disks -R "$GITHUB_REPOSITORY" "$D"/*.part-* "$D/SHA256SUMS" --clobber
           else
             gh release create macos-23G93-disks -R "$GITHUB_REPOSITORY" "$D"/*.part-* "$D/SHA256SUMS" \
-              --title "macOS 23G93 disks (encrypted, split <2GiB)" \
-              --notes "os-disk + systemos-disk, aes-256-cbc-pbkdf2 encrypted, split into <2GiB parts. Restore: cat os-disk-23G93.enc.part-* > os-disk-23G93.enc && openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:ARTIFACT_KEY -in os-disk-23G93.enc -out os-disk.raw | Verify: shasum -a 256 -c SHA256SUMS"
+              --title "macOS 23G93 disks (split <2GiB)" \
+              --notes "os-disk + systemos-disk, split into <2GiB parts. Restore: cat os-disk-23G93.raw.part-* > os-disk-23G93.raw; verify: shasum -a 256 -c SHA256SUMS"
           fi
           gh release view macos-23G93-disks -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'

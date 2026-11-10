@@ -11,8 +11,7 @@ GitHub Actions builds for porting [UniXNU](https://github.com/UniXNU) to QEMU/KV
 - `device/UniXNU-droidvm`: device repository of the virtual board.
 - `local/`: local overrides of UniXNU modules, same layout as the UniXNU repository.
 
-Binary artifacts contain components of Apple's kernelcache and are uploaded encrypted. Decrypt with:
+Binary artifacts contain components of Apple's kernelcache and are uploaded as plain artifacts (and release assets).
 
-```sh
-openssl enc -d -aes-256-cbc -pbkdf2 -pass file:KEYFILE -in binaries.tgz.enc -out binaries.tgz
-```
+`mainline.yml` dispatches the other workflows of the repository when a run finishes; disable it with the
+`trigger_downstream=false` input.

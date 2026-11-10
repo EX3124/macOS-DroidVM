@@ -7,14 +7,14 @@ name: macos-data-seed
 # then packed to DarwinBoot's DBRDISK1 format with scripts/packed-ramdisk.py (vendored from
 # Droid-VM/DarwinBoot Test/packed_ramdisk.py). The packed seed replaces
 # EFI/UniXNU/Payloads/scratch-data.img of the boot disk (mtools, no rebuild needed).
-# Uploaded encrypted; also published as the release asset macos-data-seed.
+# Uploaded as a plain artifact; also published as the release asset macos-data-seed.
 
 on:
   workflow_dispatch:
     inputs:
       os_disk_run:
-        description: macos-disks run id whose os-disk-23G93 artifact to use
-        default: '41475120001'
+        description: macos-disks run id whose os-disk-23G93 artifact to use (empty = latest successful run)
+        default: ''
       size_mib:
         description: logical size of the Data volume (MiB)
         default: '2048'
@@ -27,13 +27,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
       TAG: '23G93'
       DATA_UUID: 'B6E75E79-9594-4B6B-955A-F55B5154990A'
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: macOS
 
       - name: Toolchain
         run: |
@@ -59,11 +56,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download "${{ inputs.os_disk_run || '41475120001' }}" -R "$GITHUB_REPOSITORY" \
+          run="${{ inputs.os_disk_run }}"
+          if [ -z "$run" ]; then
+            run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow macos-disks.yml --status success --limit 1 \
+              --json databaseId --jq '.[0].databaseId')
+          fi
+          echo "macos-disks run: $run"
+          gh run download "$run" -R "$GITHUB_REPOSITORY" \
             -n os-disk-23G93 -D artifacts
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY \
-            -in artifacts/os-23G93.raw.enc -out os-23G93.raw
-          rm -f artifacts/os-23G93.raw.enc
+          mv artifacts/os-23G93.raw os-23G93.raw
           df -h /
 
       - name: Data seed
@@ -73,25 +74,24 @@ jobs:
             os-23G93.raw seed "${{ inputs.size_mib || '2048' }}"
           ls -la seed
 
-      - name: Encrypt and publish
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY \
-            -in seed/scratch-data.img -out scratch-data.img.enc
+          cp seed/scratch-data.img scratch-data.img
           if gh release view macos-data-seed -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload macos-data-seed -R "$GITHUB_REPOSITORY" scratch-data.img.enc --clobber
+            gh release upload macos-data-seed -R "$GITHUB_REPOSITORY" scratch-data.img --clobber
           else
-            gh release create macos-data-seed -R "$GITHUB_REPOSITORY" scratch-data.img.enc \
+            gh release create macos-data-seed -R "$GITHUB_REPOSITORY" scratch-data.img \
               --title "macOS Data seed (packed)" \
-              --notes "scratch-data.img.enc = the macOS 23G93 Data volume seed packed as DarwinBoot's DBRDISK1 (packed-ramdisk.py); replaces EFI/UniXNU/Payloads/scratch-data.img of the boot disk"
+              --notes "scratch-data.img = the macOS 23G93 Data volume seed packed as DarwinBoot's DBRDISK1 (packed-ramdisk.py); replaces EFI/UniXNU/Payloads/scratch-data.img of the boot disk"
           fi
 
-      - name: Upload seed (encrypted)
+      - name: Upload seed
         uses: actions/upload-artifact@v4
         with:
           name: data-seed-23G93
-          path: scratch-data.img.enc
+          path: scratch-data.img
           compression-level: 0
           retention-days: 14
           if-no-files-found: ignore

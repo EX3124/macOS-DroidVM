@@ -6,7 +6,7 @@ name: macos-disks
 # new unsealed APFS volume), then the owner root policies (local-root-policy.py +
 # macos-root-pins.py committed to out/owner/) and the root-policies-macos release asset
 # (make-virt-root.py, consumed by mainline.yml's macos matrix). The disks are uploaded
-# encrypted for flashing on the phone.
+# as plain artifacts for flashing on the phone.
 
 on:
   workflow_dispatch:
@@ -19,12 +19,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     env:
-      ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
       TAG: '23G93'
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: macOS
 
       - name: Toolchain
         run: |
@@ -55,8 +52,8 @@ jobs:
         run: |
           mkdir -p out/owner/keys
           chmod 700 out/owner/keys
-          gh release download root-policies --repo "$GITHUB_REPOSITORY" --pattern owner-keys.tar.enc --dir /tmp
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY -in /tmp/owner-keys.tar.enc | tar -xz -C out/owner/keys
+          gh release download root-policies --repo "$GITHUB_REPOSITORY" --pattern owner-keys.tar.gz --dir /tmp
+          tar -xzf /tmp/owner-keys.tar.gz -C out/owner/keys
           # tar put them under out/owner/keys/keys/ (the release step packed -C keys); flatten.
           if [ -d out/owner/keys/keys ]; then mv out/owner/keys/keys/* out/owner/keys/ && rmdir out/owner/keys/keys; fi
           chmod 600 out/owner/keys/owner.pem
@@ -102,8 +99,6 @@ jobs:
       - name: root-policies-macos asset (make-virt-root)
         run: |
           export VERIFIEDROOT_TOOLS="$PWD/sources/UniXNU/kits/VerifiedRoot/tools"
-          export ARTIFACT_KEY_FILE="$RUNNER_TEMP/ci-artifact-key"
-          printf '%s' "$ARTIFACT_KEY" > "$ARTIFACT_KEY_FILE"
           python3 scripts/make-virt-root.py "out/os-$TAG.raw" "out/systemos-$TAG.img" out/owner/keys out/virt-root
           ls -la out/virt-root
 
@@ -113,50 +108,46 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -f out/owner/macos-root-pins.json
           git commit -m "owner: macOS 23G93 root policy pins (macos-disks run ${{ github.run_id }})"
-          git push origin macOS
+          git push origin "HEAD:$GITHUB_REF_NAME"
 
       - name: Release root-policies-macos
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view root-policies-macos -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload root-policies-macos -R "$GITHUB_REPOSITORY" out/virt-root/verified-root-inputs.tar.enc --clobber
+            gh release upload root-policies-macos -R "$GITHUB_REPOSITORY" out/virt-root/verified-root-inputs.tar.gz --clobber
           else
-            gh release create root-policies-macos -R "$GITHUB_REPOSITORY" out/virt-root/verified-root-inputs.tar.enc \
+            gh release create root-policies-macos -R "$GITHUB_REPOSITORY" out/virt-root/verified-root-inputs.tar.gz \
               --title "owner root policies (macOS 23G93)" \
-              --notes "verified-root-inputs.tar.enc = OS + SystemOS VerifiedRoot manifests of the locally built 23G93 disks (make-virt-root.py); pins committed at out/owner/macos-root-pins.json"
+              --notes "verified-root-inputs.tar.gz = OS + SystemOS VerifiedRoot manifests of the locally built 23G93 disks (make-virt-root.py); pins committed at out/owner/macos-root-pins.json"
           fi
 
-      - name: Encrypt disks
+      - name: Package disks
         run: |
-          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY \
-            -in "out/os-$TAG.raw" -out "os-$TAG.raw.enc"
-          rm -f "out/os-$TAG.raw"
-          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY \
-            -in "out/systemos-$TAG.img" -out "systemos-$TAG.img.enc"
-          rm -f "out/systemos-$TAG.img"
+          mv "out/os-$TAG.raw" "os-$TAG.raw"
+          mv "out/systemos-$TAG.img" "systemos-$TAG.img"
           tar -czf owner-reports.tgz -C out/owner os-$TAG systemos-$TAG macos-root-pins.json
-          ls -la *.enc owner-reports.tgz
+          ls -la *.img *.raw owner-reports.tgz
 
-      - name: Upload OS disk (encrypted)
+      - name: Upload OS disk
         uses: actions/upload-artifact@v4
         with:
           name: os-disk-23G93
-          path: os-23G93.raw.enc
+          path: os-23G93.raw
           compression-level: 0
           retention-days: 14
           if-no-files-found: ignore
 
-      - name: Upload SystemOS disk (encrypted)
+      - name: Upload SystemOS disk
         uses: actions/upload-artifact@v4
         with:
           name: systemos-disk-23G93
-          path: systemos-23G93.img.enc
+          path: systemos-23G93.img
           compression-level: 0
           retention-days: 14
           if-no-files-found: ignore
 
-      - name: Upload policy reports (plain)
+      - name: Upload policy reports
         uses: actions/upload-artifact@v4
         with:
           name: owner-reports-23G93

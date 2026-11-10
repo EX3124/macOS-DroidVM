@@ -3,7 +3,7 @@
 
 Slim replacement of UniXNU scripts/build-verified-root-probe.py --component os --include-systemos, whose inputs (macOS
 hdiutil verification records of the sheng tree) do not exist here. Its inputs come from scripts/make-virt-root.py on the
-host, as build/verified-root-inputs/ (CI decrypts them from the encrypted release asset of the CI repository):
+host, as build/verified-root-inputs/ (CI extracts them from the root-policies release asset of the CI repository):
 
   os.manifest.bin, systemos.manifest.bin   VerifiedRoot manifests (kits/VerifiedRoot/tools/manifest.py) of the raw OS
                                            disk and of the SystemOS image, signed with the owner key

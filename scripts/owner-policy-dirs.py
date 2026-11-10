@@ -3,7 +3,7 @@
 
     owner-policy-dirs.py INPUTS TREE [ios|macos]
 
-INPUTS is the decrypted release asset root-policies/verified-root-inputs.tar.enc (scripts/make-virt-root.py on the Linux
+INPUTS is the release asset root-policies/verified-root-inputs.tar.gz (scripts/make-virt-root.py on the Linux
 host: os.manifest.bin, systemos.manifest.bin, trusted-key.bin, os.samples.bin, inputs.json). TREE is the unixnu build tree;
 this writes TREE/build/verified-root-os/ and TREE/build/verified-root-systemos/ (manifest.bin, trusted-key.bin,
 verification.json, and original-samples.bin for the OS), which build-owner-os-policy.py / build-owner-systemos-policy.py

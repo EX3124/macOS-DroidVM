@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
-      ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
       TAG: '23G93'
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +33,7 @@ jobs:
       - name: Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential gcc-aarch64-linux-gnu nasm uuid-dev python3-setuptools mtools openssl
+          sudo apt-get install -y build-essential gcc-aarch64-linux-gnu nasm uuid-dev python3-setuptools mtools
 
       - name: Sources (pinned trees)
         run: python3 scripts/prepare-sources.py
@@ -60,9 +59,10 @@ jobs:
 
       - name: Kernel (osx variant)
         run: |
-          curl -fL --retry 5 -o kernel.tgz.enc "https://github.com/AnyQuestions251/macOS-DroidVM/releases/download/macos-23G93-kernel/kernel.tgz.enc"
-          ls -la kernel.tgz.enc
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY -in kernel.tgz.enc | tar -xz
+          curl -fL --retry 5 -o kernel.tgz \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/macos-23G93-kernel/kernel.tgz"
+          ls -la kernel.tgz
+          tar -xzf kernel.tgz
           mkdir -p build
           cp kernel/kernel.macho build/kernel.macho
           ls -la build
@@ -70,10 +70,8 @@ jobs:
       - name: Data seed
         run: |
           mkdir -p artifacts/data-seed
-          curl -fL --retry 5 -o scratch-data.img.enc "https://github.com/AnyQuestions251/macOS-DroidVM/releases/download/macos-data-seed/scratch-data.img.enc"
-          ls -la scratch-data.img.enc
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ARTIFACT_KEY \
-            -in scratch-data.img.enc -out artifacts/data-seed/scratch-data.img
+          curl -fL --retry 5 -o artifacts/data-seed/scratch-data.img \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/macos-data-seed/scratch-data.img"
           ls -la artifacts/data-seed
 
       - name: Trust cache bundle (OS static + System)

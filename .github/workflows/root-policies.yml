@@ -3,9 +3,9 @@ name: root-policies
 # Owner root policies of the OS and SystemOS disks (scripts/make-virt-root.py), built in CI:
 # downloads the board IPSW (21H461), extracts the OS and Cryptex1,SystemOS members, expands the
 # OS image to a raw disk, hashes and signs both with a freshly generated owner key, and publishes
-# verified-root-inputs.tar.enc as the release asset root-policies (consumed by kernel.yml's
-# "Owner root policies" step). owner-keys.tar.enc keeps the signing key (encrypted with
-# ARTIFACT_KEY): reuse it to regenerate consistent policies later.
+# verified-root-inputs.tar.gz as the release asset root-policies (consumed by kernel.yml's
+# "Owner root policies" step). owner-keys.tar.gz keeps the signing key (plain): reuse it to
+# regenerate consistent policies later.
 
 on:
   workflow_dispatch:
@@ -25,7 +25,6 @@ jobs:
     timeout-minutes: 240
     env:
       UNIXNU_REF: ${{ inputs.unixnu_ref || 'fb2bb310564ce66779e472a021881cf7c5764919' }}
-      ARTIFACT_KEY: ${{ secrets.ARTIFACT_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,8 +64,6 @@ jobs:
       - name: Policies (make-virt-root)
         run: |
           export VERIFIEDROOT_TOOLS="$GITHUB_WORKSPACE/UniXNU/kits/VerifiedRoot/tools"
-          export ARTIFACT_KEY_FILE="$RUNNER_TEMP/ci-artifact-key"
-          printf '%s' "$ARTIFACT_KEY" > "$ARTIFACT_KEY_FILE"
           python3 ci/scripts/make-virt-root.py OS.raw SYSTEMOS.dmg keys out
           ls -la out
 
@@ -74,13 +71,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tar -czf owner-keys.tgz -C keys owner.pem owner-public.pem
-          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_KEY -in owner-keys.tgz -out owner-keys.tar.enc
+          tar -czf owner-keys.tar.gz -C keys owner.pem owner-public.pem
           if gh release view root-policies -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload root-policies -R "$GITHUB_REPOSITORY" out/verified-root-inputs.tar.enc owner-keys.tar.enc --clobber
+            gh release upload root-policies -R "$GITHUB_REPOSITORY" out/verified-root-inputs.tar.gz owner-keys.tar.gz --clobber
           else
-            gh release create root-policies -R "$GITHUB_REPOSITORY" out/verified-root-inputs.tar.enc owner-keys.tar.enc \
+            gh release create root-policies -R "$GITHUB_REPOSITORY" out/verified-root-inputs.tar.gz owner-keys.tar.gz \
               --title "owner root policies" \
-              --notes "verified-root-inputs.tar.enc = OS + SystemOS VerifiedRoot manifests (make-virt-root.py, 21H461 images); owner-keys.tar.enc = the owner signing key, encrypted with ARTIFACT_KEY"
+              --notes "verified-root-inputs.tar.gz = OS + SystemOS VerifiedRoot manifests (make-virt-root.py, 21H461 images); owner-keys.tar.gz = the owner signing key"
           fi
           gh release view root-policies -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'
