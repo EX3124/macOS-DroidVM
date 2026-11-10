@@ -8,11 +8,11 @@
     "manifest_sha256": "6587d8c3adef6dab0d7b8e93f29b1c92cca2fe9bb888a2764db7e9fc4751f73d"
   },
   "systemos": {
-    "image_sha256": "3b69425e3f718db917a2ea8f64b3cb8781cddbae1543f45c479d4006991f53b2",
+    "image_sha256": "7763cda39ecbb7be3858062bbd6a0f96c1606bd9e0d055bc7e923dac0c8b7385",
     "blocks_verified": 1835008,
     "image_bytes": 7516192768,
     "volume_uuid": "8846FE78-2910-4297-AF97-D59BB6F8FC16",
     "trusted_key_sha256": "a65af1b61aabc4056f15603e61ccc8fb2ed3071bd022fee7e412eb2cabc84b4e",
-    "manifest_sha256": "8c797cda67425a6e95d5376d393c7dd68499ee2ba62df0d7539f6e7021817a9f"
+    "manifest_sha256": "99b5059c24f3a0aad61cf9e1eb4800ed2c98c61e3525a3a70033a19e166c7dea"
   }
 }
