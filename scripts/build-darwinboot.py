@@ -38,8 +38,20 @@ def main():
     env = dict(os.environ, WORKSPACE=str(workspace), EDK_TOOLS_PATH=str(EDK2 / 'BaseTools'), PYTHON_COMMAND='python3',
                PACKAGES_PATH=':'.join([str(ROOT / 'sources'), str(EDK2), str(ROOT / 'sources/UniXNU/package'), str(driver)]),
                GCC_AARCH64_PREFIX='aarch64-linux-gnu-')
-    command = ('set +u; source "$1/edksetup.sh" BaseTools; set -u; '
-               f'build -p {platform} -m DarwinBootPkg/Driver/DarwinBoot.inf -a AARCH64 -b DEBUG -t GCC -n 4')
+    # mu_basecore has no edksetup.sh (the workflow uses it for BaseTools): create the Conf files and PATH entry that
+    # edksetup.sh provides, and keep using edksetup.sh when a full edk2 tree is in sources/.
+    env['PATH'] = str(EDK2 / 'BaseTools/BinWrappers/PosixLike') + os.pathsep + env['PATH']
+    conf = workspace / 'Conf'
+    conf.mkdir(parents=True, exist_ok=True)
+    for template, name in (('target.template', 'target.txt'), ('tools_def.template', 'tools_def.txt')):
+        source = EDK2 / 'BaseTools/Conf' / template
+        if source.exists() and not (conf / name).exists():
+            shutil.copyfile(source, conf / name)
+    build = f'build -p {platform} -m DarwinBootPkg/Driver/DarwinBoot.inf -a AARCH64 -b DEBUG -t GCC -n 4'
+    if (EDK2 / 'edksetup.sh').exists():
+        command = f'set +u; source "$1/edksetup.sh" BaseTools; set -u; {build}'
+    else:
+        command = f'set -u; {build}'
     subprocess.run(['bash', '-c', command, 'bash', str(EDK2)], cwd=ROOT, env=env, check=True)
     efi = next(workspace.rglob('DarwinBootPkg/Driver/DarwinBoot/OUTPUT/DarwinBoot.efi'))
     destination = ROOT / 'artifacts/boot-inputs/DarwinBoot.efi'
