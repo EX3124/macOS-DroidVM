@@ -15,3 +15,7 @@ Binary artifacts contain components of Apple's kernelcache and are uploaded as p
 
 `mainline.yml` dispatches the other workflows of the repository when a run finishes; disable it with the
 `trigger_downstream=false` input.
+
+The kernel embeds the owner root policies of its disks, so the `root-policies` (iOS) and `root-policies-macos` (macOS)
+releases must exist before a `mainline` run. In a fresh fork, run them in this order first: `root-policies.yml`, then
+`macos-disks.yml` (it reuses the owner key of the first one), then `mainline.yml`.

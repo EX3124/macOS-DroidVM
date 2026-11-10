@@ -11,6 +11,8 @@ name: mainline
 #
 # Two kernels per run: root=ios (iPadOS 21H461) and root=macos (macOS 14.6.1 23G93 userland on the same kernel and kexts).
 # They differ only in the owner root policies baked into the kernel: release root-policies and root-policies-macos.
+# Both releases must exist before a run: root-policies.yml publishes the iOS one, macos-disks.yml the macOS one (after
+# downloading the owner-keys.tar.gz of root-policies).
 
 on:
   workflow_dispatch:
@@ -58,6 +60,7 @@ jobs:
       BOARD: droidvm
       LABEL: ${{ matrix.root == 'ios' && 'mainline' || 'mainline-macos' }}
       POLICIES: ${{ matrix.root == 'ios' && 'root-policies' || 'root-policies-macos' }}
+      POLICIES_SOURCE: ${{ matrix.root == 'ios' && 'root-policies.yml' || 'macos-disks.yml' }}
       UNIXNU_REPO: ${{ inputs.unixnu_repo || 'Droid-VM/UniXNU' }}
       UNIXNU_REF: ${{ inputs.unixnu_ref || 'wip/droidvm' }}
       DEVICE_REPO: ${{ inputs.device_repo || 'Droid-VM/UniXNU-droidvm' }}
@@ -138,9 +141,13 @@ jobs:
       - name: Owner root policies
         # build/verified-root-{os,systemos} from the owner manifests published as $POLICIES/verified-root-inputs.tar.gz.
         run: |
-          gh release download "$POLICIES" --repo "$GITHUB_REPOSITORY" --pattern verified-root-inputs.tar.gz --dir "$RUNNER_TEMP"
           inputs="$RUNNER_TEMP/verified-root-inputs"
           mkdir -p "$inputs"
+          if ! gh release download "$POLICIES" --repo "$GITHUB_REPOSITORY" \
+                 --pattern verified-root-inputs.tar.gz --dir "$RUNNER_TEMP"; then
+            echo "::error::release $POLICIES has no verified-root-inputs.tar.gz; run $POLICIES_SOURCE on this branch first"
+            exit 1
+          fi
           tar -xzf "$RUNNER_TEMP/verified-root-inputs.tar.gz" -C "$inputs"
           python3 ci/scripts/owner-policy-dirs.py "$inputs" "UniXNU/out/$BOARD/tree" "${{ matrix.root }}"
           if [ "${{ matrix.root }}" = macos ]; then
