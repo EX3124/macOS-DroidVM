@@ -1,0 +1,130 @@
+name: macos27-payload
+
+# Builds the macOS 27 kernel payload on a GitHub-hosted macOS runner, from public sources only:
+#
+#   xnu-12377.121.6 + patches/xnu-12377  ->  k27 kernel (arm64e, 4 KiB, kc27 segment layout)
+#   native kexts (NativeVirtioBlock, NativeRamBlock, NativeAES)
+#   kernel collection (the 27 kernelcache kexts + our kernel + our kexts)
+#
+# There is no uploaded bundle and no developer tree: ci/harness/fetch.sh pulls the pinned public sources, the KDK and
+# the UniXNU harness scripts; ci/harness/fetch-kernelcache.sh reads the 27 kernelcache out of the IPSW with HTTP ranges.
+# Everything lands in the paths the k27 scripts already use (out/x12377, out/k27, out/kc).
+#
+# The boot disk itself (boot.img) is the next stage: it needs a Data seed built from the IPSW (make-macos-disk.py) and
+# a trust cache; both are generated inputs, not uploaded ones. Until that stage lands this workflow publishes the
+# payload (kernel-k27.macho, kc-k27.bin) as artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: macOS profile (configs/macos-<tag>-*.json, artifacts/TAG)
+        default: '27.2'
+      kexts:
+        description: extra kexts to link (space separated - display video audio gpu input ethernet)
+        default: ''
+      runner:
+        description: runner image (needs Xcode 27)
+        default: 'macos-27'
+      xcode:
+        description: Xcode application (empty = the newest Xcode 27 on the image)
+        default: ''
+      kdk_url:
+        description: KDK disk image URL (dortania/KdkSupportPkg); empty = rely on the Xcode SDK headers
+        default: ''
+      kdk_sha256:
+        description: KDK disk image SHA-256 (required with kdk_url)
+        default: ''
+      publish:
+        description: publish the payload to the macos27-payload release
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macos27-payload
+  cancel-in-progress: false
+
+jobs:
+  payload:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    env:
+      MACOS_TAG: ${{ inputs.tag }}
+      K27_KEXTS: ${{ inputs.kexts }}
+      KDK_URL: ${{ inputs.kdk_url }}
+      KDK_SHA256: ${{ inputs.kdk_sha256 }}
+      JOBS: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode 27
+        # The k27 chain is a macOS 27 target: its compile records and the kernel build expect Xcode 27's SDK, clang,
+        # iig and ld. The image may carry several Xcodes; pick 27 unless the caller names one.
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.xcode }}" ]; then
+            sudo xcode-select -s "${{ inputs.xcode }}"
+          elif ! xcodebuild -version | grep -q 'Xcode 27'; then
+            app=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1 || true)
+            if [ -n "$app" ]; then sudo xcode-select -s "$app"; fi
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun -f iig || true
+          xcrun -f mig || true
+          # k27/try.sh calls llvm-nm unversioned; Xcode ships it in the toolchain.
+          nmtool=$(xcrun -f llvm-nm 2>/dev/null || true)
+          if [ -n "$nmtool" ]; then sudo ln -sf "$nmtool" /usr/local/bin/llvm-nm; fi
+
+      - name: Host tools
+        run: |
+          set -euo pipefail
+          brew install cmake ninja unifdef mtools
+          python3 -m pip install --user --upgrade pyimg4
+
+      - name: Pinned sources (UniXNU, UniXNU-droidvm, tools)
+        # scripts/prepare-sources.py materializes sources/ from configs/sources.lock.json with submodules.
+        run: python3 scripts/prepare-sources.py
+
+      - name: Public harness inputs (xnu + patches, KDK, libplatform/libdispatch, UniXNU scripts)
+        run: bash ci/harness/fetch.sh
+
+      - name: macOS 27 kernelcache
+        run: bash ci/harness/fetch-kernelcache.sh
+
+      - name: Kernel, native kexts and kernel collection
+        run: bash ci/k27-build.sh all
+
+      - name: Collect
+        if: always()
+        run: |
+          mkdir -p collect
+          cp out/k27/kernel-k27.macho out/k27/kc-k27.bin out/k27/kc-k27.natives.json collect/ 2>/dev/null || true
+          cp out/kc/kc27.bin collect/kc27.bin 2>/dev/null || true
+          sha256sum collect/* 2>/dev/null || true
+          ls -la collect
+
+      - name: Upload payload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos27-payload-${{ inputs.tag }}
+          path: collect/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+
+      - name: Publish payload
+        if: inputs.publish && hashFiles('collect/kc-k27.bin') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="macos27-payload-${{ inputs.tag }}"
+          gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" -R "$GITHUB_REPOSITORY" --title "$tag" \
+              --notes "macOS ${{ inputs.tag }} k27 kernel and kernel collection (arm64e, kc27 layout)"
+          gh release upload "$tag" -R "$GITHUB_REPOSITORY" collect/kernel-k27.macho collect/kc-k27.bin \
+            collect/kc-k27.natives.json --clobber

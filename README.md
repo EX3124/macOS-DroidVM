@@ -8,6 +8,7 @@ GitHub Actions builds for porting [UniXNU](https://github.com/UniXNU) to QEMU/KV
 [DroidVM](https://github.com/Droid-VM) crosvm on Gunyah.
 
 - `.github/workflows/kernel.yml`: `unixnu build kernel` on a macOS runner.
+- `.github/workflows/macos27-payload.yml`: the macOS 27 kernel payload (xnu-12377 + patches, native kexts, kernel collection) on a macOS runner with Xcode 27, from public sources (`ci/harness/`).
 - `device/UniXNU-droidvm`: device repository of the virtual board.
 - `local/`: local overrides of UniXNU modules, same layout as the UniXNU repository.
 

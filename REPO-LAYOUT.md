@@ -14,7 +14,8 @@
 |---|---|---|
 | `README.md` | 是 | 早期 CI 说明（`device/`、`local/` 已不存在，内容过时） |
 | `TODO.md` | 否 | 10 月的总体规划与阶段验收（23G93/14.6.1 时期） |
-| `.github/workflows/` | 是 | `kernel.yml`（macOS runner 上 `unixnu build kernel`）、`mainline.yml` |
+| `.github/workflows/` | 是 | `kernel.yml`（macOS runner 上 `unixnu build kernel`）、`mainline.yml`、`macos27-payload.yml`（macOS/Xcode 27 上从公开源编 k27 内核、kext 与 KC，入口在 `ci/`） |
+| `ci/` | 是 | `macos27-payload.yml` 的构建入口：`harness/fetch.sh`（公开源、KDK、UniXNU 脚本）、`harness/build-kernel.sh`（arm64e + kc27 段布局）、`harness/fetch-kernelcache.sh`（IPSW 取 27 内核缓存）、`k27-build.sh`（内核→kext→KC）、`boot27.py`（ADT + `boot.img`，待种子/信任缓存）、`fixtures/`（历史恢复的 `UniXNU.efi`/FDT） |
 | `k27/` | 是 | **当前主线**：macOS 27 内核缓存的构建、上机、调试脚本（见下） |
 | `scripts/` | 是 | 通用脚本：KC 链接、Metal/Turnip 构建、Data 盘、App 部署、guest 内存读取（见下） |
 | `patches/` | 是 | 对各上游的补丁（见下） |
