@@ -87,6 +87,14 @@ if [ -n "${KDK_URL:-}" ]; then
   echo "== KDK headers"
   python3 "$OUT/unixnu/scripts/kdk-headers.py" --url "$KDK_URL" --sha256 "${KDK_SHA256:?KDK_SHA256 is required with KDK_URL}" \
     --cache "$ROOT/out/tmp/kdk" "$X/kdk"
+else
+  # KDK 25F84 (macOS 26.5.2 / xnu-12377.122.8): the public KdkSupportPkg asset. Xcode 27's SDK does not ship the
+  # CoreEntitlements/TrustCache/CodeSignature kernel headers that patches/xnu-12377 removed the stubs for.
+  echo "== KDK headers (Kernel_Debug_Kit_26.5.2_build_25F84.dmg)"
+  python3 "$OUT/unixnu/scripts/kdk-headers.py" \
+    --url https://github.com/dortania/KdkSupportPkg/releases/download/25F84/Kernel_Debug_Kit_26.5.2_build_25F84.dmg \
+    --sha256 faef4393becf65c88a2791770904909babf1826d23d2ea478bf878a6417851ab \
+    --cache "$ROOT/out/tmp/kdk" "$X/kdk"
 fi
 
 git -C "$TREE" log --oneline -1

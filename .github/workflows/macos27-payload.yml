@@ -97,6 +97,13 @@ jobs:
         # scripts/prepare-sources.py materializes sources/ from configs/sources.lock.json with submodules.
         run: python3 scripts/prepare-sources.py
 
+      - name: Cache KDK download
+        # The KDK disk image is 1.2 GB; cache the download (ci/harness/fetch.sh verifies its SHA-256 on use).
+        uses: actions/cache@v4
+        with:
+          path: out/tmp/kdk
+          key: kdk-25F84
+
       - name: Public harness inputs (xnu + patches, KDK, libplatform/libdispatch, UniXNU scripts)
         run: bash ci/harness/fetch.sh
 
