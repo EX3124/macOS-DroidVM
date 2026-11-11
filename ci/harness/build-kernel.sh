@@ -26,6 +26,16 @@ SDK=$(xcrun --sdk iphoneos --show-sdk-path)
 
 log() { printf '\n== %s\n' "$*"; }
 fail() { echo "build-kernel: $*" >&2; exit 1; }
+# macOS ar refuses to create an archive without members ("ar: no archive members specified"); the force-loaded
+# stand-ins (headers-only KDK KernelSupport, first-pass platform archives) need one empty arm64e object.
+make_stub_archive() {
+  local archive=$1 object=$OUT/stub.o
+  if [ ! -f "$object" ]; then
+    printf 'int k27_stub_symbol;\n' > "$OUT/stub.c"
+    xcrun clang -target arm64e-apple-ios26.0 -c "$OUT/stub.c" -o "$object"
+  fi
+  xcrun ar rcs "$archive" "$object"
+}
 [ -d "$TREE" ] || fail "missing sources/xnu-12377 (run ci/harness/fetch.sh)"
 [ -f "$TREE/.k27-patched" ] || fail "sources/xnu-12377 is not the patched k27 tree"
 [ -d "$OUT/unixnu/scripts" ] || fail "missing out/harness/unixnu (run ci/harness/fetch.sh)"
@@ -103,7 +113,7 @@ fi
 KDK_FLAGS=()
 mkdir -p "$KDK/System/Library/KernelSupport"
 [ -f "$KDK/System/Library/KernelSupport/libBCM2837.os.DEVELOPMENT.a" ] || \
-  xcrun ar rcs "$KDK/System/Library/KernelSupport/libBCM2837.os.DEVELOPMENT.a"
+  make_stub_archive "$KDK/System/Library/KernelSupport/libBCM2837.os.DEVELOPMENT.a"
 if [ -d "$KDK/System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders" ]; then
   KDK_FLAGS=(-I"$KDK/System/Library/Frameworks/Kernel.framework/Versions/A/PrivateHeaders"
              -I"$KDK/System/Library/KernelSupport")
@@ -127,7 +137,7 @@ log "first pass: compile records (link may fail)"
 mkdir -p "$X/un/build/platform-12377-arm64e/ArmDTPlatform" "$X/un/build/platform-12377-arm64e/ArmCpu"
 for component in ArmDTPlatform ArmCpu; do
   [ -f "$X/un/build/platform-12377-arm64e/$component/lib$component.a" ] || \
-    xcrun ar rcs "$X/un/build/platform-12377-arm64e/$component/lib$component.a"
+    make_stub_archive "$X/un/build/platform-12377-arm64e/$component/lib$component.a"
 done
 CFLAGS_EXTRA="-DXNU_NATIVE_CS_HASH_CACHE=1 -DXNU_NATIVE_RAM_BLOCK=1 -DXNU_OWNER_CACHE_MOUNT=1 \
 -DXNU_OWNER_BOOT_MANIFEST=1 -DXNU_OWNER_CACHE_STARTUP=1 ${KDK_FLAGS[*]:-} \
