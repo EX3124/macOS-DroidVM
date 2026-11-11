@@ -141,6 +141,7 @@ for component in ArmDTPlatform ArmCpu; do
 done
 CFLAGS_EXTRA="-DXNU_NATIVE_CS_HASH_CACHE=1 -DXNU_NATIVE_RAM_BLOCK=1 -DXNU_OWNER_CACHE_MOUNT=1 \
 -DXNU_OWNER_BOOT_MANIFEST=1 -DXNU_OWNER_CACHE_STARTUP=1 ${KDK_FLAGS[*]:-} \
+-I$FAKE/usr/local/include/kernel -I$FAKE/usr/local/include -I$FAKE/usr/local/include/iBoot \
 -Wno-error=missing-designated-field-initializers -Wno-reserved-identifier -Wno-pre-c11-compat \
 -Wno-missing-designated-field-initializers -Wno-suggest-override -Wno-unnecessary-virtual-specifier"
 MAKE=(make -C "$TREE" build SDKROOT=iphoneos ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT
@@ -164,17 +165,20 @@ ln -sfn "$OBJ" "$X/build/xnu/e-obj"
 
 # ------------------------------------------------------------------------------------------------------ platform libs
 log "ArmDTPlatform and ArmCpu (arm64e, from the kernel's compile record)"
-# The public helper asserts a plain arm64 subtype and reads records from its own UniXNU layout; adapt both here.
-PLATFORM=$OUT/build-platform-12377.py
-cp "$OUT/unixnu/scripts/build-platform-12377.py" "$PLATFORM"
+# The public helper resolves its own ROOT from __file__, so it has to stay inside the UniXNU tree; copy it there
+# (not to out/harness) and relax the plain-arm64 subtype assertion for arm64e.
+PLATFORM=$OUT/unixnu/scripts/build-platform-12377.py
 python3 - "$PLATFORM" <<'PY'
 import sys
 from pathlib import Path
 path = Path(sys.argv[1]); text = path.read_text()
 old = "if struct.unpack_from('<4I', data) != (0xfeedfacf, 0x100000c, 0, 1):"
 new = "if struct.unpack_from('<4I', data) != (0xfeedfacf, 0x100000c, 2, 1):"   # arm64e subtype 2
-assert text.count(old) == 1, old
-path.write_text(text.replace(old, new))
+if old in text:
+    assert text.count(old) == 1, old
+    path.write_text(text.replace(old, new))
+elif new not in text:
+    raise SystemExit(f'{path}: unexpected subtype assertion')
 PY
 mkdir -p "$OUT/unixnu/build/xnu-12377.121.6"
 ln -sfn "$OBJ" "$OUT/unixnu/build/xnu-12377.121.6/ios-obj"
