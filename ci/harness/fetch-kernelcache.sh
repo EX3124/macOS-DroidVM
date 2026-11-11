@@ -26,8 +26,10 @@ echo "IPSW: $URL"
 if [ ! -s "$OUT/kc27.bin" ]; then
   if [ ! -s "$OUT/kc27.im4p" ]; then
     python3 "$ROOT/scripts/ipsw-member.py" "$URL" list | tee "$OUT/members.txt" >/dev/null
-    # Single awk exits on the first match: grep|awk|head would SIGPIPE and, with pipefail, fail silently.
-    MEMBER=$(awk '/kernelcache\.release\.vma2$/ {print $3; exit}' "$OUT/members.txt")
+    # The member name follows the restore device: 27.2 (Mac17,10) ships kernelcache.release.mac17j, 27.0.1
+    # (VirtualMac2,1) ships kernelcache.release.vma2. Prefer vma2 when present, else take the one kernelcache member.
+    MEMBER=$(awk '$3 ~ /^kernelcache\.release\./ {m[$3] = 1; if ($3 ~ /vma2$/) v = $3} END {
+                      if (v != "") { print v } else { for (k in m) { print k; break } } }' "$OUT/members.txt")
     [ -n "$MEMBER" ] || { echo "fetch-kernelcache: kernelcache.release.vma2 not in the IPSW" >&2; exit 1; }
     echo "member: $MEMBER"
     python3 "$ROOT/scripts/ipsw-member.py" "$URL" get "$MEMBER" "$OUT/kc27.im4p"
