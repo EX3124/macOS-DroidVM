@@ -46,7 +46,7 @@ log "Xcode: $(xcodebuild -version | head -1), SDK: $SDK"
 log "fakeroot (libplatform, libdispatch, AvailabilityVersions)"
 mkdir -p "$FAKE/usr/local/include/kernel" "$OBJ/EXPORT_HDRS/libsa" "$FAKE/usr/local/lib/kernel"
 ditto "$SDK/usr/include/TargetConditionals.h" "$FAKE/usr/local/include/kernel/TargetConditionals.h" 2>/dev/null || true
-ditto "$SDK/SDKSettings.plist" "$FAKE/SDKSettings.plist" 2>/dev/null || true
+cp "$SDK/SDKSettings.plist" "$FAKE/SDKSettings.plist" 2>/dev/null || log "warning: no $SDK/SDKSettings.plist"
 ditto "$OUT/libplatform/include" "$FAKE/usr/local/include"
 ditto "$OUT/libplatform/private" "$FAKE/usr/local/include"
 ditto "$OUT/libplatform/private/platform" \
@@ -124,12 +124,13 @@ else
 fi
 
 # The kernel VA here is 39-bit (T1SZ_BOOT 25, the 4 KiB/BCM2837 geometry). arm64e macOS assumes 41 significant
-# pointer bits, which would need 25 + 1 + 41 <= 64; narrow it to 38, as the 4 KiB port does.
-VM_PARAM=$(grep -rl 'define VM_KERNEL_POINTER_SIGNIFICANT_BITS 41' "$TREE/osfmk" 2>/dev/null | head -1 || true)
-if [ -n "$VM_PARAM" ]; then
-  perl -pi -e 's/define VM_KERNEL_POINTER_SIGNIFICANT_BITS 41/define VM_KERNEL_POINTER_SIGNIFICANT_BITS 38/' "$VM_PARAM"
-  log "narrowed $VM_PARAM to 38 significant pointer bits"
-fi
+# pointer bits, which would need 25 + 1 + 41 <= 64; narrow every definition to 38.
+for f in $(grep -rl 'VM_KERNEL_POINTER_SIGNIFICANT_BITS' "$TREE" 2>/dev/null); do
+  if grep -qE 'VM_KERNEL_POINTER_SIGNIFICANT_BITS[[:space:]]+41' "$f"; then
+    perl -pi -e 's/(VM_KERNEL_POINTER_SIGNIFICANT_BITS\s+)41/${1}38/' "$f"
+    log "narrowed pointer bits in $f"
+  fi
+done
 
 # The kc27 segment list has no makefile hook in xnu; append one (idempotent).
 if ! grep -q 'XNU_KC_SEGADDRS' "$TREE/makedefs/MakeInc.def"; then
