@@ -82,7 +82,13 @@ jobs:
         run: |
           set -euo pipefail
           brew install cmake ninja unifdef mtools
-          python3 -m pip install --user --upgrade pyimg4
+          # unifdef is keg-only on Homebrew; the fakeroot step runs it from PATH.
+          echo "/opt/homebrew/opt/unifdef/bin" >> "$GITHUB_PATH"
+          # The runner's python3 is externally managed (PEP 668): pyimg4 lives in its own venv, and
+          # ci/harness/fetch-kernelcache.sh uses K27_PYTHON for it.
+          python3 -m venv "$RUNNER_TEMP/pyimg4"
+          "$RUNNER_TEMP/pyimg4/bin/python" -m pip install --upgrade pip pyimg4
+          echo "K27_PYTHON=$RUNNER_TEMP/pyimg4/bin/python" >> "$GITHUB_ENV"
 
       - name: Pinned sources (UniXNU, UniXNU-droidvm, tools)
         # scripts/prepare-sources.py materializes sources/ from configs/sources.lock.json with submodules.

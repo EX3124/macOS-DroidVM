@@ -10,6 +10,7 @@ cd "$(dirname "$0")/../.."
 ROOT=$PWD
 TAG=${MACOS_TAG:-27.2}
 OUT=$ROOT/out/kc
+PY=${K27_PYTHON:-python3}     # the workflow puts pyimg4 in a venv; everything else is stdlib
 mkdir -p "$OUT"
 export TMPDIR=${TMPDIR:-$ROOT/out/tmp}; mkdir -p "$TMPDIR"
 
@@ -30,7 +31,7 @@ if [ ! -s "$OUT/kc27.bin" ]; then
     echo "member: $MEMBER"
     python3 "$ROOT/scripts/ipsw-member.py" "$URL" get "$MEMBER" "$OUT/kc27.im4p"
   fi
-  python3 -m pyimg4 im4p extract -i "$OUT/kc27.im4p" -o "$OUT/kc27.bin"
+  "$PY" -m pyimg4 im4p extract -i "$OUT/kc27.im4p" -o "$OUT/kc27.bin"
 fi
 python3 - "$OUT/kc27.bin" <<'PY'
 import struct, sys
