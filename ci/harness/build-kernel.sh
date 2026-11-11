@@ -194,12 +194,19 @@ import sys
 from pathlib import Path
 path = Path(sys.argv[1]); text = path.read_text()
 old = "if struct.unpack_from('<4I', data) != (0xfeedfacf, 0x100000c, 0, 1):"
-new = "if struct.unpack_from('<4I', data) != (0xfeedfacf, 0x100000c, 2, 1):"   # arm64e subtype 2
+new = ("if struct.unpack_from('<I', data, 0)[0] != 0xfeedfacf or "
+       "struct.unpack_from('<I', data, 4)[0] != 0x100000c:   # arm64 or arm64e")
 if old in text:
-    assert text.count(old) == 1, old
-    path.write_text(text.replace(old, new))
+    text = text.replace(old, new)
 elif new not in text:
     raise SystemExit(f'{path}: unexpected subtype assertion')
+# The compile record may say plain arm64; the kernel is arm64e, so force the object arch.
+if "'-arch', 'arm64e'" not in text:
+    marker = "command += ['-Wall'"
+    if marker not in text:
+        raise SystemExit(f'{path}: unexpected command assembly')
+    text = text.replace(marker, "command += ['-arch', 'arm64e', '-Wall'", 1)
+path.write_text(text)
 PY
 mkdir -p "$OUT/unixnu/build/xnu-12377.121.6"
 ln -sfn "$OBJ" "$OUT/unixnu/build/xnu-12377.121.6/ios-obj"
