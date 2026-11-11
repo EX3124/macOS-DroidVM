@@ -67,6 +67,13 @@ clone https://github.com/apple-oss-distributions/IOStorageFamily.git IOStorageFa
 echo "== UniXNU harness sources (none24smu/UniXNU @ ios26)"
 clone https://github.com/none24smu/UniXNU.git "$UNIXNU_REF" "$OUT/unixnu" --submodules
 
+echo "== edk2-gunyah (GunyahPkg + DarwinBoot) and the derived GunyahBootPkg"
+clone https://github.com/Droid-VM/edk2-gunyah.git droidvm "$OUT/edk2-gunyah"
+git -C "$OUT/edk2-gunyah" submodule update --init --recursive --depth 1 edk2
+ln -sfn "$OUT/edk2-gunyah/edk2" "$ROOT/sources/edk2"
+ln -sfn "$OUT/edk2-gunyah/GunyahPkg" "$ROOT/sources/GunyahPkg"
+python3 "$ROOT/ci/darwinboot/make-gunyah-boot.py" "$OUT/edk2-gunyah" "$ROOT/sources/GunyahBootPkg"
+
 echo "== paths the k27 kext builders expect"
 ln -sfn "$TREE" "$X/xnu-m"
 if [ -d "$OUT/IOStorageFamily/IOKit" ]; then

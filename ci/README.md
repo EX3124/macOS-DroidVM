@@ -44,10 +44,12 @@ Everything is written into the paths the existing k27 scripts use (`out/x12377`,
 
 ## Not in this stage yet
 
-`boot.img` assembly (`ci/boot27.py`) needs three generated inputs that are not in this workflow yet:
+`boot.img` assembly (`ci/boot27.py`) needs two generated inputs that are not in this workflow yet:
 
 - a **Data seed** (`scratch-data.img`) built from the IPSW with `make-macos-disk.py` (large: OS + SystemOS cryptex);
-- a **trust cache** from the IPSW's `StaticTrustCache` / `Cryptex1,SystemTrustCache`;
-- `DarwinBoot.efi`, which needs the `GunyahBootPkg` source that is not in this repository.
+- a **trust cache** from the IPSW's `StaticTrustCache` / `Cryptex1,SystemTrustCache`.
 
-`ci/boot27.py` and the fixture FDT/`UniXNU.efi` are ready for that stage.
+`DarwinBoot.efi` is built from source: `ci/darwinboot/make-gunyah-boot.py` derives `GunyahBootPkg/GunyahBoot.dsc`
+from the public `edk2-gunyah` `GunyahPkg/GunyahKernel.dsc` (component list replaced by `DarwinBootPkg/Driver/DarwinBoot.inf`),
+and `scripts/build-darwinboot.py` builds it with the UniXNU DarwinBoot driver. `ci/boot27.py` and the fixture
+FDT/`UniXNU.efi` are ready for the boot-disk stage.

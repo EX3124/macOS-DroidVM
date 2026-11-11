@@ -97,12 +97,24 @@ jobs:
       - name: Kernel, native kexts and kernel collection
         run: bash ci/k27-build.sh all
 
+      - name: DarwinBoot.efi
+        # GunyahBootPkg is derived from the public edk2-gunyah GunyahPkg by ci/darwinboot/make-gunyah-boot.py;
+        # DarwinBootPkg itself comes from sources/UniXNU/drivers/DarwinBoot (prepare-sources).
+        run: |
+          set -euo pipefail
+          make -C sources/edk2/BaseTools -j"$(sysctl -n hw.ncpu)"
+          mkdir -p artifacts/boot-inputs
+          [ -s artifacts/boot-inputs/provenance.json ] || echo '{}' > artifacts/boot-inputs/provenance.json
+          python3 scripts/build-darwinboot.py
+          ls -la artifacts/boot-inputs/DarwinBoot.efi
+
       - name: Collect
         if: always()
         run: |
           mkdir -p collect
           cp out/k27/kernel-k27.macho out/k27/kc-k27.bin out/k27/kc-k27.natives.json collect/ 2>/dev/null || true
           cp out/kc/kc27.bin collect/kc27.bin 2>/dev/null || true
+          cp artifacts/boot-inputs/DarwinBoot.efi collect/ 2>/dev/null || true
           sha256sum collect/* 2>/dev/null || true
           ls -la collect
 
