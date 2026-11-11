@@ -218,6 +218,13 @@ done
 
 # ------------------------------------------------------------------------------------------------ final link (kc27)
 log "second pass: kernel with the kc27 segment layout"
+# The checked-in k27/segaddrs.sh was generated from the original kernel's segment sizes; ours differ (TEXT_EXEC
+# overlaps __KLD at those addresses). Recompute the layout from the first-pass kernel with kc27-layout.py.
+BOOT_KERNEL=$(find "$OBJ/DEVELOPMENT_ARM64_BCM2837" -maxdepth 1 -name '*development*.unstripped.noctf' -print -quit 2>/dev/null || true)
+if [ -n "$BOOT_KERNEL" ] && [ -s "$ROOT/out/kc/kc27.bin" ]; then
+  python3 "$ROOT/k27/kc27-layout.py" "$ROOT/out/kc/kc27.bin" "$BOOT_KERNEL" --write "$ROOT/k27/segaddrs.sh" \
+    || log "warning: kc27-layout.py failed; keeping the checked-in segaddrs.sh"
+fi
 SEGADDRS=$(bash "$ROOT/k27/segaddrs.sh")
 rm -f "$OBJ/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
 "${MAKE[@]}" \
