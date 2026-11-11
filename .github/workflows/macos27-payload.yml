@@ -81,9 +81,12 @@ jobs:
       - name: Host tools
         run: |
           set -euo pipefail
-          brew install cmake ninja unifdef mtools
+          brew install cmake ninja unifdef mtools gnu-sed
           # unifdef is keg-only on Homebrew; the fakeroot step runs it from PATH.
           echo "/opt/homebrew/opt/unifdef/bin" >> "$GITHUB_PATH"
+          # xnu's header export tool invokes GNU-style `sed -i 's/.../' file`, which BSD sed rejects
+          # ("invalid command code I"); GNU sed must come first.
+          echo "/opt/homebrew/opt/gnu-sed/libexec/gnubin" >> "$GITHUB_PATH"
           # The runner's python3 is externally managed (PEP 668): pyimg4 lives in its own venv, and
           # ci/harness/fetch-kernelcache.sh uses K27_PYTHON for it.
           python3 -m venv "$RUNNER_TEMP/pyimg4"
