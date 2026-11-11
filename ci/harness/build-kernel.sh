@@ -45,6 +45,7 @@ log "Xcode: $(xcodebuild -version | head -1), SDK: $SDK"
 # --------------------------------------------------------------------------------------------------- fakeroot headers
 log "fakeroot (libplatform, libdispatch, AvailabilityVersions)"
 mkdir -p "$FAKE/usr/local/include/kernel" "$OBJ/EXPORT_HDRS/libsa" "$FAKE/usr/local/lib/kernel"
+ditto "$SDK/usr/include/TargetConditionals.h" "$FAKE/usr/local/include/kernel/TargetConditionals.h" 2>/dev/null || true
 ditto "$OUT/libplatform/include" "$FAKE/usr/local/include"
 ditto "$OUT/libplatform/private" "$FAKE/usr/local/include"
 ditto "$OUT/libplatform/private/platform" \
@@ -141,10 +142,9 @@ for component in ArmDTPlatform ArmCpu; do
 done
 CFLAGS_EXTRA="-DXNU_NATIVE_CS_HASH_CACHE=1 -DXNU_NATIVE_RAM_BLOCK=1 -DXNU_OWNER_CACHE_MOUNT=1 \
 -DXNU_OWNER_BOOT_MANIFEST=1 -DXNU_OWNER_CACHE_STARTUP=1 ${KDK_FLAGS[*]:-} \
--I$FAKE/usr/local/include/kernel -I$FAKE/usr/local/include -I$FAKE/usr/local/include/iBoot \
 -Wno-error=missing-designated-field-initializers -Wno-reserved-identifier -Wno-pre-c11-compat \
 -Wno-missing-designated-field-initializers -Wno-suggest-override -Wno-unnecessary-virtual-specifier"
-MAKE=(make -C "$TREE" build SDKROOT=iphoneos ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT
+MAKE=(make -C "$TREE" build SDKROOT="$FAKE" ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT
   ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG=arm64e LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY
   ARM64_LINK_ADDR=0xfffffff007004000 ARM64_PLKSEG_ADDR=0xfffffff004004000
   DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=26.0 -DXNU_TARGET_OS_OSX"
