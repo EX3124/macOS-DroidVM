@@ -65,13 +65,36 @@ make -C "$TREE" installhdrs SDKROOT=macosx ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=BC
   RC_DARWIN_KERNEL_VERSION="${XNU_DARWIN:-25.5.0}" RC_ProjectSourceVersion="${XNU_VERSION:-12377.121.6}" \
   MAKEJOBS=-j"$JOBS" OBJROOT="$OBJ" SYMROOT="$OUT/sym" DSTROOT="$FAKE" >/dev/null
 
-log "firehose"
-FH=$(find "$OUT/libdispatch" -name firehose_buffer.c -print -quit)
-[ -n "$FH" ] || fail "no firehose_buffer.c in libdispatch"
-xcrun --sdk iphoneos clang -target arm64e-apple-ios26.0 -isysroot "$SDK" -mkernel -O2 -fno-builtin -fblocks \
-  -I "$FAKE/usr/local/include" -I "$OUT/libdispatch" -I "$OUT/libdispatch/os" \
-  -c "$FH" -o "$OBJ/firehose_buffer.o"
-xcrun ar rcs "$FAKE/usr/local/lib/kernel/libfirehose_kernel.a" "$OBJ/firehose_buffer.o"
+log "firehose (libdispatch's libfirehose_kernel target)"
+# The UniXNU recipe builds libfirehose_kernel with libdispatch's own Xcode project against the fakeroot. The project
+# is copied so its xcconfig can be pointed at out/x12377/fakeroot; the EXTERNAL_HEADERS it wants are the kernel's.
+WORK=$OUT/libdispatch-work
+if [ ! -d "$WORK" ]; then cp -R "$OUT/libdispatch" "$WORK"; fi
+ln -sfn "$TREE" "$OUT/xnu-work"
+python3 - "$WORK" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1]) / 'xcodeconfig/libfirehose_kernel.xcconfig'
+text = path.read_text()
+text = text.replace('$(SDKROOT)/System/Library/Frameworks/Kernel.framework',
+                    '$(FAKEROOT_DIR)/System/Library/Frameworks/Kernel.framework')
+text = text.replace('$(SDKROOT)/usr/local/include', '$(FAKEROOT_DIR)/usr/local/include')
+lines = text.splitlines()
+extra = ' $(SDKROOT)/usr/include $(FAKEROOT_DIR)/usr/local/include $(PROJECT_DIR)/../xnu-work/EXTERNAL_HEADERS'
+for index, line in enumerate(lines):
+    if line.startswith('HEADER_SEARCH_PATHS =') and 'xnu-work/EXTERNAL_HEADERS' not in line:
+        lines[index] = line + extra
+path.write_text('\n'.join(lines) + '\n')
+PY
+xcrun xcodebuild install -project "$WORK/libdispatch.xcodeproj" -target libfirehose_kernel \
+  -configuration Release -sdk iphoneos -jobs "$JOBS" \
+  ARCHS=arm64e VALID_ARCHS=arm64e ONLY_ACTIVE_ARCH=NO IPHONEOS_DEPLOYMENT_TARGET=26.0 \
+  CODE_SIGNING_ALLOWED=NO GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+  OBJROOT="$OUT/firehose/obj" SYMROOT="$OUT/firehose/sym" DSTROOT="$FAKE" FAKEROOT_DIR="$FAKE"
+if [ -f "$FAKE/usr/local/lib/kernel/liblibfirehose_kernel.a" ]; then
+  mv "$FAKE/usr/local/lib/kernel/liblibfirehose_kernel.a" "$FAKE/usr/local/lib/kernel/libfirehose_kernel.a"
+fi
+[ -s "$FAKE/usr/local/lib/kernel/libfirehose_kernel.a" ] || fail "libfirehose_kernel.a was not built"
 
 # ------------------------------------------------------------------------------------------------------- KDK headers
 # The patches delete xnu's stub CoreEntitlements/TrustCache headers: the real ones come from a KDK. The makefile
