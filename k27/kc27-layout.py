@@ -93,7 +93,7 @@ def main():
     ours = kernel_sizes(a.kernel)
     need = {n: up(ours[n] + (MARGIN if n in GROWS else 0)) for n in ours}
     place = {}
-    place['__TEXT'] = 0x4000
+    place['__TEXT'] = top['__PRELINK_TEXT'][0]   # the kernel's free slot starts where __PRELINK_TEXT begins (27.2: 0x8000)
     place['__DATA_CONST'] = apple['__DATA_CONST'][0]
     place['__LASTDATA_CONST'] = apple['__LASTDATA_CONST'][0]
     place['__TEXT_EXEC'] = apple['__KLD'][0] - need['__TEXT_EXEC']   # ends where Apple's __KLD starts
