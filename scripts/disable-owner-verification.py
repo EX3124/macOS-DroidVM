@@ -95,8 +95,12 @@ def edit_patch(device, unixnu):
         if not patch.is_file():
             raise SystemExit(f'{patch}: missing')
         text = patch.read_text()
-        text, count = guard.subn('+/* Unsigned build: no boot manifest is published; the scratch Data mount still runs. */\n',
-                                 text)
+        # The replacement must keep the hunk's added-line count: a unified diff whose @@ header no longer matches its
+        # body is corrupt (git apply: "corrupt patch"). Three added lines replace the three removed ones.
+        text, count = guard.subn(
+            '+/*\n'
+            '+ * Unsigned build: no boot manifest is published; the scratch Data mount still runs.\n'
+            '+ */\n', text)
         if not count:
             if '#error Scratch Data mounting requires the authenticated original OS startup path' in text:
                 raise SystemExit(f'{patch}: the Data mount guard did not match')

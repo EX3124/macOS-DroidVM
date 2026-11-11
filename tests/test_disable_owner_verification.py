@@ -32,15 +32,16 @@ CONFIG_XNU_NATIVE_VIRTIO_BLOCK_ARCHIVE="{tree}/build/native-virtio-block-verifie
 CONFIG_XNU_VERIFIED_ROOT_ARCHIVE="{tree}/build/verified-root-os-xnu-bundle/libVerifiedRootProbe.a"
 '''
 
-PATCH = '''--- a/bsd/vm/vm_unix.c
-+++ b/bsd/vm/vm_unix.c
-@@
+PATCH = '''--- a/f.c
++++ b/f.c
+@@ -1,2 +1,7 @@
+ line1
 +#if defined(XNU_OWNER_DATA_MOUNT) && XNU_OWNER_DATA_MOUNT
 +#if !defined(XNU_OWNER_BOOT_MANIFEST) || !XNU_OWNER_BOOT_MANIFEST
 +#error Scratch Data mounting requires the authenticated original OS startup path
 +#endif
-+#if defined(XNU_NATIVE_RAM_BLOCK) && XNU_NATIVE_RAM_BLOCK
 +#endif
+ line2
 '''
 
 
@@ -83,6 +84,15 @@ class DisableOwnerVerificationTests(unittest.TestCase):
         for patch in (self.device / 'patches/xnu', self.unixnu / 'patches/xnu'):
             text = (patch / 'offline-owner-systemos-mount.patch').read_text()
             self.assertNotIn('#error Scratch Data mounting', text)
+
+    def test_rewritten_patch_stays_appliable(self):
+        repo = Path(self.temp.name) / 'repo'
+        repo.mkdir()
+        (repo / 'f.c').write_text('line1\nline2\n')
+        subprocess.run(['git', '-C', str(repo), 'init', '-q'], check=True)
+        self.run_script()
+        subprocess.run(['git', '-C', str(repo), 'apply', '--check',
+                        str(self.unixnu / 'patches/xnu/offline-owner-systemos-mount.patch')], check=True)
 
     def test_idempotent(self):
         self.run_script()
