@@ -1,7 +1,8 @@
 # CI for the macOS 27 kernel payload
 
-`.github/workflows/macos27-payload.yml` builds, on a GitHub-hosted **macOS** runner with **Xcode 27**, the k27 kernel
-payload from public sources only. There is no uploaded toolchain bundle and no developer tree:
+`.github/workflows/macos27-payload.yml` builds, on the GitHub-hosted **`xcode-27`** preview image (macOS 27.0.1,
+Xcode 27.0/27.1/27.2), the k27 kernel payload from public sources only. There is no uploaded toolchain bundle and no
+developer tree:
 
 ```
 ci/harness/fetch.sh            xnu-12377.121.6 + patches/xnu-12377 (git am), KDK headers, libplatform/libdispatch,

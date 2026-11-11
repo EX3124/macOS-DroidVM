@@ -23,8 +23,8 @@ on:
         description: extra kexts to link (space separated - display video audio gpu input ethernet)
         default: ''
       runner:
-        description: runner image (needs Xcode 27)
-        default: 'macos-27'
+        description: runner image (the Xcode 27 preview image is labelled xcode-27)
+        default: 'xcode-27'
       xcode:
         description: Xcode application (empty = the newest Xcode 27 on the image)
         default: ''
@@ -60,13 +60,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Xcode 27
-        # The k27 chain is a macOS 27 target: its compile records and the kernel build expect Xcode 27's SDK, clang,
-        # iig and ld. The image may carry several Xcodes; pick 27 unless the caller names one.
+        # The Xcode 27 preview image is `xcode-27` (macOS 27.0.1, Xcode 27.0/27.1/27.2). Select the newest 27.x
+        # unless the caller names one; Xcode.app alone may point at 27.1.
         run: |
           set -euo pipefail
           if [ -n "${{ inputs.xcode }}" ]; then
             sudo xcode-select -s "${{ inputs.xcode }}"
-          elif ! xcodebuild -version | grep -q 'Xcode 27'; then
+          else
             app=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1 || true)
             if [ -n "$app" ]; then sudo xcode-select -s "$app"; fi
           fi
