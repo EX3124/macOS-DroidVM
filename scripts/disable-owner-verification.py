@@ -118,6 +118,39 @@ def edit_patch(device, unixnu):
             print(f'{patch}: boot-manifest requirement of the scratch Data mount removed')
 
 
+def edit_baseline(script):
+    """Relax the two build-script guards that assume the signed owner chain is present."""
+    if not script.is_file():
+        print(f'{script}: missing, no baseline guards to relax')
+        return
+    text = script.read_text()
+    guards = (
+        (re.compile(
+            r'if \[ "\$OWNER_ROOT_AUDIT" = 1 \] && \[ "\$OWNER_ROOT_PROBE" != 1 \] && '
+            r'\[ "\$\{XNU_SOURCE_STORAGE:-0\}" != 1 \]; then\n'
+            r'  echo \'The root-binding audit requires real owner-verified block crypto\' >&2\n'
+            r'  exit 1\n'
+            r'fi\n'),
+         '# Unsigned build: the root-binding audit keeps running against the permissive driver hook.\n',
+         'The root-binding audit requires real owner-verified block crypto'),
+        (re.compile(
+            r'if \[ "\$OWNER_DATA_MOUNT" = 1 \] && \[ "\$OWNER_BOOT_MANIFEST" != 1 \]; then\n'
+            r'  echo \'Scratch Data requires authenticated original OS/owner metadata startup\' >&2\n'
+            r'  exit 1\n'
+            r'fi\n'),
+         '# Unsigned build: no boot manifest is published; the scratch Data mount still runs.\n',
+         'Scratch Data requires authenticated original OS/owner metadata startup'),
+    )
+    for pattern, replacement, marker in guards:
+        text, count = pattern.subn(replacement, text)
+        if not count:
+            if marker in text:
+                raise SystemExit(f'{script}: the owner guard did not match')
+            print(f'{script}: {marker!r} already absent')
+    script.write_text(text)
+    print(f'{script}: owner-root and scratch-Data guards relaxed')
+
+
 def edit_applied_tree(tree):
     """An existing out/.../tree has already applied the XNU patches; drop the guard from its work tree too."""
     source = tree / '.cache/xnu-work/bsd/vm/vm_unix.c'
@@ -159,8 +192,11 @@ def main():
         if not (unixnu / 'patches/xnu').is_dir():
             raise SystemExit(f'{unixnu}: no patches/xnu')
         edit_patch(device, unixnu)
+        edit_baseline(unixnu / 'scripts/build-xnu-4k-baseline.sh')
     if args.tree:
-        edit_applied_tree(args.tree.resolve())
+        tree = args.tree.resolve()
+        edit_applied_tree(tree)
+        edit_baseline(tree / 'scripts/build-xnu-4k-baseline.sh')
 
 
 if __name__ == '__main__':

@@ -89,6 +89,25 @@ class DisableOwnerVerificationTests(unittest.TestCase):
             text = (patch / 'offline-owner-systemos-mount.patch').read_text()
             self.assertNotIn('#error Scratch Data mounting', text)
 
+    def test_relaxes_the_baseline_guards(self):
+        script = self.unixnu / 'scripts/build-xnu-4k-baseline.sh'
+        script.parent.mkdir(parents=True)
+        script.write_text('''#!/bin/bash
+if [ "$OWNER_ROOT_AUDIT" = 1 ] && [ "$OWNER_ROOT_PROBE" != 1 ] && [ "${XNU_SOURCE_STORAGE:-0}" != 1 ]; then
+  echo 'The root-binding audit requires real owner-verified block crypto' >&2
+  exit 1
+fi
+if [ "$OWNER_DATA_MOUNT" = 1 ] && [ "$OWNER_BOOT_MANIFEST" != 1 ]; then
+  echo 'Scratch Data requires authenticated original OS/owner metadata startup' >&2
+  exit 1
+fi
+''')
+        self.run_script()
+        text = script.read_text()
+        self.assertNotIn('The root-binding audit requires real owner-verified block crypto', text)
+        self.assertNotIn('Scratch Data requires authenticated original OS/owner metadata startup', text)
+        self.assertIn('Unsigned build', text)
+
     def test_rewritten_patch_stays_appliable(self):
         repo = Path(self.temp.name) / 'repo'
         repo.mkdir()

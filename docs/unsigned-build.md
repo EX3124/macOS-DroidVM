@@ -12,6 +12,7 @@
 | `board.toml` | 删掉 `build-verified-root-probe.py --component os --include-systemos` 归档；把 `build-arm-driver.py NativeVirtioBlock --verified-root --verified-root-bundle` 改成不带 flag 的版本；bindings 的 `--directory` 从 `build/native-virtio-block-verified-bundle` 改为 `build/native-virtio-block`（不带 flag 时 `build-arm-driver.py` 就写这个目录） |
 | `configs/<defconfig>` | `CONFIG_XNU_VERIFIED_ROOT_PROBE=n`、`CONFIG_XNU_OWNER_BOOT_MANIFEST=n`，删掉 `CONFIG_XNU_VERIFIED_ROOT_ARCHIVE`，`CONFIG_XNU_NATIVE_VIRTIO_BLOCK_ARCHIVE` 改指 `build/native-virtio-block/libVirtioMmioBlock.a` |
 | `patches/xnu/offline-owner-systemos-mount.patch` | 去掉 “scratch Data mount 需要 boot manifest” 的 `#error` |
+| `scripts/build-xnu-4k-baseline.sh` | 去掉两条构建期一致性检查：`OWNER_ROOT_AUDIT` 必须配 `VERIFIED_ROOT_PROBE`，以及 `OWNER_DATA_MOUNT` 必须配 `OWNER_BOOT_MANIFEST`（否则脚本直接 `exit 1`） |
 
 `mainline.yml` 在 Sources 之后、Fetch 之前对 `device` 和 `device-ref` 各跑一次；`scripts/build-linux.py full`
 对 `out/linux/device-full` 和已应用的 `out/linux/UniXNU` 工作树跑同样的脚本。
