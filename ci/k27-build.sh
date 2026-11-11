@@ -13,7 +13,7 @@
 #   K27_KEXTS    space separated extra kexts to link: display video audio gpu input ethernet
 #                (default: none; the KC always gets NativeVirtioBlock, NativeRamBlock and NativeAES, which are what
 #                mount the store and decrypt Image4's nonces)
-#   K27_JOBS     make parallelism (default: nproc)
+#   K27_JOBS     make parallelism (default: nproc, or sysctl hw.ncpu on macOS)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -21,7 +21,13 @@ TAG=${K27_TAG:-27.2}
 export MACOS_TAG=$TAG
 mkdir -p out/tmp out/k27 out/rig
 export TMPDIR=$ROOT/out/tmp
-JOBS=${K27_JOBS:-$(nproc)}
+if [ -n "${K27_JOBS:-}" ]; then
+  JOBS=$K27_JOBS
+elif command -v nproc >/dev/null 2>&1; then
+  JOBS=$(nproc)
+else
+  JOBS=$(sysctl -n hw.ncpu)
+fi
 
 stage=${1:-all}
 case "$stage" in
