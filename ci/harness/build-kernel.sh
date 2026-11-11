@@ -66,7 +66,7 @@ make -C "$TREE" installhdrs SDKROOT=macosx ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=BC
   MAKEJOBS=-j"$JOBS" OBJROOT="$OBJ" SYMROOT="$OUT/sym" DSTROOT="$FAKE" >/dev/null
 
 log "firehose"
-FH=$(find "$OUT/libdispatch" -name firehose_buffer.c | head -1)
+FH=$(find "$OUT/libdispatch" -name firehose_buffer.c -print -quit)
 [ -n "$FH" ] || fail "no firehose_buffer.c in libdispatch"
 xcrun --sdk iphoneos clang -target arm64e-apple-ios26.0 -isysroot "$SDK" -mkernel -O2 -fno-builtin -fblocks \
   -I "$FAKE/usr/local/include" -I "$OUT/libdispatch" -I "$OUT/libdispatch/os" \

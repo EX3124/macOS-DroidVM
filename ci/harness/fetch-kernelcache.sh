@@ -14,7 +14,7 @@ PY=${K27_PYTHON:-python3}     # the workflow puts pyimg4 in a venv; everything e
 mkdir -p "$OUT"
 export TMPDIR=${TMPDIR:-$ROOT/out/tmp}; mkdir -p "$TMPDIR"
 
-profile=$(ls "$ROOT"/configs/macos-"$TAG"-*.json 2>/dev/null | head -1)
+profile=$(set -- "$ROOT"/configs/macos-"$TAG"-*.json; [ -f "$1" ] && printf '%s\n' "$1")
 [ -n "$profile" ] || { echo "fetch-kernelcache: no configs/macos-$TAG-*.json" >&2; exit 1; }
 URL=$(python3 - "$profile" <<'PY'
 import json, sys
@@ -26,7 +26,8 @@ echo "IPSW: $URL"
 if [ ! -s "$OUT/kc27.bin" ]; then
   if [ ! -s "$OUT/kc27.im4p" ]; then
     python3 "$ROOT/scripts/ipsw-member.py" "$URL" list | tee "$OUT/members.txt" >/dev/null
-    MEMBER=$(grep -E 'kernelcache\.release\.vma2$' "$OUT/members.txt" | awk '{print $3}' | head -1)
+    # Single awk exits on the first match: grep|awk|head would SIGPIPE and, with pipefail, fail silently.
+    MEMBER=$(awk '/kernelcache\.release\.vma2$/ {print $3; exit}' "$OUT/members.txt")
     [ -n "$MEMBER" ] || { echo "fetch-kernelcache: kernelcache.release.vma2 not in the IPSW" >&2; exit 1; }
     echo "member: $MEMBER"
     python3 "$ROOT/scripts/ipsw-member.py" "$URL" get "$MEMBER" "$OUT/kc27.im4p"
