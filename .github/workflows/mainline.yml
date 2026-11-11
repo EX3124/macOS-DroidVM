@@ -14,6 +14,12 @@ name: mainline
 # repository (scripts/make-reference-device.py) in the same tree.
 #
 # Two kernels per run: root=ios (iPadOS 21H461) and root=macos (macOS 14.6.1 23G93 userland on the same kernel and kexts).
+#
+# The refs default to the last mainline build that linked (2026-11-07, upstream run 42393995268). wip/droidvm and
+# wip/hackintosh have since moved to the iPadOS 27 tree: its package/DroidVMGpu.cpp and DroidVMFileExport.c use
+# OSMetaClassAdoptSuperclass / droidvm_page_info and friends, whose XNU patches live under ipados27/patches, but this
+# 21H461 board only applies patches/xnu (overlay + UniXNU), so the link fails with undefined symbols. Pass the inputs to
+# test other refs.
 
 on:
   workflow_dispatch:
@@ -21,11 +27,11 @@ on:
       unixnu_repo:
         default: Droid-VM/UniXNU
       unixnu_ref:
-        default: wip/droidvm
+        default: baeb8f0cf2143bd84e6076252c7f90345cc6fef6
       device_repo:
         default: Droid-VM/UniXNU-droidvm
       device_ref:
-        default: wip/hackintosh
+        default: bf7fc44cc3b1a92c842c84aa980993eaa74a2cd8
       rebuild_reference:
         type: boolean
         default: false
@@ -55,9 +61,9 @@ jobs:
       BOARD: droidvm
       LABEL: ${{ matrix.root == 'ios' && 'mainline' || 'mainline-macos' }}
       UNIXNU_REPO: ${{ inputs.unixnu_repo || 'Droid-VM/UniXNU' }}
-      UNIXNU_REF: ${{ inputs.unixnu_ref || 'wip/droidvm' }}
+      UNIXNU_REF: ${{ inputs.unixnu_ref || 'baeb8f0cf2143bd84e6076252c7f90345cc6fef6' }}
       DEVICE_REPO: ${{ inputs.device_repo || 'Droid-VM/UniXNU-droidvm' }}
-      DEVICE_REF: ${{ inputs.device_ref || 'wip/hackintosh' }}
+      DEVICE_REF: ${{ inputs.device_ref || 'bf7fc44cc3b1a92c842c84aa980993eaa74a2cd8' }}
       REBUILD_REFERENCE: ${{ inputs.rebuild_reference || false }}
       GH_TOKEN: ${{ github.token }}
     steps:

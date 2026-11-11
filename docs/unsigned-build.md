@@ -54,6 +54,15 @@ owner 的**挂载**功能没有关，否则 macOS 根起不来：
 但主线不再调用它；`verification.json` 里明确写 `signed: false`。`local-root-policy.py`、
 `macos-root-pins.py`、`macos-policy-inputs.py`、`macos-root-probe.py` 是签名时代的工具，保留但已不参与构建。
 
+## 参考分支的 refs
+
+`mainline.yml` 的 `unixnu_ref` / `device_ref` 默认值改成
+`baeb8f0cf2143bd84e6076252c7f90345cc6fef6` / `bf7fc44cc3b1a92c842c84aa980993eaa74a2cd8`（2026-11-07 最后一次成功链接的
+上游 run 42393995268），与 `ci/pre-upstream-sync-20261111` 分支一致。`wip/droidvm` 和 `wip/hackintosh` 后来切到 iPadOS 27
+树，`package/DroidVMGpu.cpp` / `DroidVMFileExport.c` 引用的 `OSMetaClassAdoptSuperclass`、`droidvm_page_info` 等符号由
+`ipados27/patches` 提供，而 21H461 板只应用 `patches/xnu`（overlay + UniXNU），链接会报 undefined symbols。需要测试新 ref 时
+用 workflow_dispatch 的输入覆盖。
+
 ## 第一次跑的检查点
 
 这台机器上没有 macOS SDK 和 XNU 源码，改动只做了 Python 单测（`tests/test_disable_owner_verification.py`）。

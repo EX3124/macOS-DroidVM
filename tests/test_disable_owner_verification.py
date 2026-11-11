@@ -89,6 +89,19 @@ class DisableOwnerVerificationTests(unittest.TestCase):
             text = (patch / 'offline-owner-systemos-mount.patch').read_text()
             self.assertNotIn('#error Scratch Data mounting', text)
 
+    def test_relaxes_the_old_baseline_guard_variant(self):
+        # The 2026-11-07 refs (the last mainline that linked) have no XNU_SOURCE_STORAGE term in the first guard.
+        script = self.unixnu / 'scripts/build-xnu-4k-baseline.sh'
+        script.parent.mkdir(parents=True)
+        script.write_text('''#!/bin/bash
+if [ "$OWNER_ROOT_AUDIT" = 1 ] && [ "$OWNER_ROOT_PROBE" != 1 ]; then
+  echo 'The root-binding audit requires real owner-verified block crypto' >&2
+  exit 1
+fi
+''')
+        self.run_script()
+        self.assertNotIn('The root-binding audit requires real owner-verified block crypto', script.read_text())
+
     def test_relaxes_the_baseline_guards(self):
         script = self.unixnu / 'scripts/build-xnu-4k-baseline.sh'
         script.parent.mkdir(parents=True)

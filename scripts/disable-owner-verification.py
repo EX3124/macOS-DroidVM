@@ -126,8 +126,8 @@ def edit_baseline(script):
     text = script.read_text()
     guards = (
         (re.compile(
-            r'if \[ "\$OWNER_ROOT_AUDIT" = 1 \] && \[ "\$OWNER_ROOT_PROBE" != 1 \] && '
-            r'\[ "\$\{XNU_SOURCE_STORAGE:-0\}" != 1 \]; then\n'
+            r'if \[ "\$OWNER_ROOT_AUDIT" = 1 \] && \[ "\$OWNER_ROOT_PROBE" != 1 \]'
+            r'(?: && \[ "\$\{XNU_SOURCE_STORAGE:-0\}" != 1 \])?; then\n'
             r'  echo \'The root-binding audit requires real owner-verified block crypto\' >&2\n'
             r'  exit 1\n'
             r'fi\n'),
