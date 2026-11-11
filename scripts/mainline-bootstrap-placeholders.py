@@ -36,7 +36,9 @@ place(legacy / 'libNativeLegacyDisplay.late.a', ARCHIVE)
 place(legacy / 'build-report.json', json.dumps(dict(
     archive_sha256=hashlib.sha256((legacy / 'libNativeLegacyDisplay.late.a').read_bytes()).hexdigest(),
     source_sha256={}, placeholder=True)).encode())
-for directory, name in (('native-virtio-block-verified-bundle', 'NativeVirtioBlock'), ('native-ram-block', 'NativeRamBlock')):
+for directory, name in (('native-virtio-block', 'NativeVirtioBlock'),
+                        ('native-virtio-block-verified-bundle', 'NativeVirtioBlock'),
+                        ('native-ram-block', 'NativeRamBlock')):
     base = tree / 'build' / directory
     place(base / f'lib{name}.a', ARCHIVE)
     place(base / f'{name}.o', b'')

@@ -44,6 +44,11 @@ def edit_board(device):
         text)
     if '--verified-root' in text:
         raise SystemExit(f'{board}: a --verified-root flag survived')
+    # Without --verified-root-bundle build-arm-driver.py writes build/native-virtio-block, so the bindings builder and the
+    # archive path must move with it.
+    text = text.replace('build/native-virtio-block-verified-bundle', 'build/native-virtio-block')
+    if 'verified-bundle' in text:
+        raise SystemExit(f'{board}: a verified-bundle path survived')
     board.write_text(text)
     if drivers:
         print(f'{board}: removed {removed} verified-root archive(s), {drivers} NativeVirtioBlock builder(s) unsigned')
@@ -69,6 +74,9 @@ def edit_defconfig(device, defconfig):
         else:
             out.append(line)
     body = ''.join(out).replace('(verified owner root)', '(unsigned owner root)')
+    body = body.replace('build/native-virtio-block-verified-bundle', 'build/native-virtio-block')
+    if 'verified-bundle' in body:
+        raise SystemExit(f'{config}: a verified-bundle archive path survived')
     for line in body.splitlines():
         stripped = line.strip()
         if stripped in ('CONFIG_XNU_VERIFIED_ROOT_PROBE=y', 'CONFIG_XNU_OWNER_BOOT_MANIFEST=y',
