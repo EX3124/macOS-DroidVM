@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Create and independently verify a local owner policy; no encrypted CI inputs required."""
+"""Create and independently verify a local owner policy; no encrypted CI inputs required.
+
+Legacy: the unsigned mainline embeds no owner policy and does not verify root disks (docs/unsigned-build.md).
+"""
 import argparse
 import hashlib
 import importlib.util

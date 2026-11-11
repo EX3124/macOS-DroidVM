@@ -55,7 +55,7 @@
   - `make-macos-disk.py`：生成单 APFS 容器新装盘与空种子；`make-trust-bundle.py`：生成信任缓存。
 - **guest 观察**：`rig-dmesg.py`（从宿主读 guest msgbuf，`--peek` 读内核变量）、`crash-symbolize.py`、`stackshot-*.py`、`xnu12377-smoke.sh`、`boot-cycle.sh`。
 - **IPSW / APFS**：`ipsw-member.py`、`macos-fetch-member.py`、`macos-inputs.py`、`apfs-*.py`、`udif-expand.py`、`dsc-disasm.py`、`dsc-xref.py`。
-- **构建环境**：`prepare-sources.py`、`import-linux-toolchain.py`、`start-linux-runtime.py`、`unixnu-linux.py`，以及 owner policy / 信任根相关的 `*-policy*.py`、`macos-root-*.py`。
+- **构建环境**：`prepare-sources.py`、`import-linux-toolchain.py`、`start-linux-runtime.py`、`unixnu-linux.py`；不签名构建用 `disable-owner-verification.py`（workflow 里改写外部 device/UniXNU），哈希清单用 `make-virt-root.py`、`owner-policy-dirs.py`；`*-policy*.py`、`macos-root-*.py` 是签名时代的工具，已不参与构建（见 `docs/unsigned-build.md`）。
 
 ## patches/
 

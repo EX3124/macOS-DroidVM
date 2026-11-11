@@ -96,9 +96,9 @@ jobs:
           gh api "$api/EXTERNAL_HEADERS/TrustCache?ref=xnu-8796.101.5" > "$sources/xnu-trustcache-8796.101.5.json"
           ls -la "$sources"
 
-      - name: Owner root policies
-        # VerifiedRoot manifests of the OS and SystemOS disks (scripts/make-virt-root.py on the host), published as the
-        # release asset root-policies/verified-root-inputs.tar.gz; build-virt-verified-root.py embeds them.
+      - name: Owner root policies (upstream sheng only)
+        # This manual workflow builds UniXNU-sheng, not the DroidVM mainline. The mainline is unsigned and no longer
+        # consumes root-policies/verified-root-inputs.tar.gz (docs/unsigned-build.md); sheng may still embed one.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

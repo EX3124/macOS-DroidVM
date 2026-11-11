@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Lay the locally built owner policies out as the verified-root-inputs directory owner-policy-dirs.py reads.
 
+Legacy: the unsigned mainline embeds no owner policy and needs no owner key (docs/unsigned-build.md).
+
     macos-policy-inputs.py [--output out/owner/inputs]
 
 Writes os.manifest.bin, systemos.manifest.bin, trusted-key.bin, os.samples.bin and inputs.json (the layout of

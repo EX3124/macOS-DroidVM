@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Write the macOS-root variant of UniXNU scripts/build-verified-root-probe.py.
 
+Legacy: the unsigned mainline no longer builds or embeds the verified-root probe (docs/unsigned-build.md).
+
     macos-root-probe.py SOURCE DESTINATION
 
 The probe builder pins the 21H461 OS and SystemOS images that its policies must describe. For the macOS root (CI matrix

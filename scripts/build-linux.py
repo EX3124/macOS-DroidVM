@@ -105,7 +105,7 @@ def prepare():
     spec.loader.exec_module(adapter)
     _, overrides = adapter.prepare(TREE, TC, TC / 'host-deps', TC / 'bin/target-iig')
     (OUT / 'linux-env.json').write_text(json.dumps(overrides, indent=2) + '\n')
-    print('Prepared reference tree; full macOS root/owner policies are separate inputs')
+    print('Prepared reference tree; the unsigned full build assembles its own device tree')
 
 
 def build(jobs):
@@ -122,7 +122,7 @@ BASELINE_FLAGS_NEW = 'DEPLOYMENT_TARGET_FLAGS="${XNU_DEPLOYMENT_TARGET_FLAGS:--m
 
 
 def full(jobs, legacy_display=False):
-    """Second pass of the mainline workflow: the full device with native storage/display, owner policies and the reference candidate."""
+    """Second pass of the mainline workflow: the full device with native storage/display, no owner verification and the reference candidate."""
     env = environment()
     overrides = json.loads((OUT / 'linux-env.json').read_text())
     env.update({k: v for k, v in overrides.items() if k not in ('PATH', 'PYTHONPATH')})
@@ -165,12 +165,10 @@ def full(jobs, legacy_display=False):
             text = config.read_text()
             assert text.count('CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y') == 1
             config.write_text(text.replace('CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y', 'CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n'))
-    policy_inputs = ROOT / 'out/owner/inputs'
-    if not policy_inputs.exists():
-        run(sys.executable, ROOT / 'scripts/macos-policy-inputs.py')
-    run(sys.executable, ROOT / 'scripts/owner-policy-dirs.py', policy_inputs, BUILD / 'droidvm/tree', 'macos')
-    run(sys.executable, ROOT / 'scripts/macos-root-probe.py', UNIXNU / 'scripts/build-verified-root-probe.py',
-        FULL_DEVICE / 'scripts/build-verified-root-probe.py')
+    # Unsigned build: no owner key, no verified-root-inputs.tar.gz. The device tree loses the probe archive and the
+    # --verified-root driver flags, and UniXNU's scratch Data mount no longer requires a boot manifest.
+    run(sys.executable, ROOT / 'scripts/disable-owner-verification.py', FULL_DEVICE, '--unixnu', UNIXNU,
+        '--tree', TREE)
     # Build scripts of the reference tree that this project replaces (an object cache for the immutable corecrypto sources).
     for script in (ROOT / 'overlay/droidvm/tree-scripts').glob('*.py'):
         target = TREE / 'scripts' / script.name
@@ -180,17 +178,14 @@ def full(jobs, legacy_display=False):
         target = FULL_DEVICE / 'patches/xnu' / patch.name
         if not target.exists() or target.read_bytes() != patch.read_bytes():   # an edited overlay patch replaces its stale copy
             shutil.copyfile(patch, target)
-    # The owner patches name the OS volume UUID of the upstream author's converted disk; this project keeps Apple's own volume
-    # UUID (macos-root-pins.json) and changes the kernel's constant instead of rewriting the APFS volume.
-    os_uuid = json.loads((ROOT / 'out/owner/macos-root-pins.json').read_text())['os']['volume_uuid'].upper()
+    # The owner patches name the OS volume UUID of the upstream author's converted disk; this project boots a disk built by
+    # make-macos-disk.py and changes the kernel's constant instead of rewriting the APFS volume.
+    os_uuid = os.environ.get('MACOS_ROOT_UUID', '4646A7E0-5598-41A2-B158-E1AF6D3CF7FB').upper()
     # The patches and the already patched work tree must change together: the build re-applies a patch only when the tree
     # does not already contain it.
-    # An earlier build may already have replaced the constant with another root's UUID (marker file; the 14.6.1 root's pin
-    # before the marker existed): those spellings are replaced too.
+    # An earlier build may already have replaced the constant with another root's UUID (marker file): replace those too.
     marker = BUILD / 'os-uuid-applied.txt'
-    old_pins = ROOT / 'out/owner/macos-root-pins.23G93.json'
-    previous = marker.read_text().strip() if marker.exists() else (
-        json.loads(old_pins.read_text())['os']['volume_uuid'].upper() if old_pins.exists() else UPSTREAM_OS_UUID)
+    previous = marker.read_text().strip() if marker.exists() else UPSTREAM_OS_UUID
     spellings = [name for name in dict.fromkeys((UPSTREAM_OS_UUID, previous)) if name != os_uuid]
     for name in ('offline-owner-cache-carrier.patch', 'offline-owner-systemos-mount.patch'):
         patch = FULL_DEVICE / 'patches/xnu' / name

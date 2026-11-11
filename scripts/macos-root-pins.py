@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Collect the locally generated OS/SystemOS owner policies into the pins file the macOS probe builders read.
 
+Legacy: the unsigned mainline no longer builds the verified-root probe (docs/unsigned-build.md).
+
     macos-root-pins.py [--os out/owner/os-23G93] [--systemos out/owner/systemos-23G93] [--output out/owner/macos-root-pins.json]
 
 The pins describe the images this project built itself (verification.json from local-root-policy.py), replacing the

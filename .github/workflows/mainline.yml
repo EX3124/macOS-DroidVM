@@ -4,13 +4,16 @@ name: mainline
 # diagnostic XNU patches of overlay/droidvm/patches/xnu and the drivers of overlay/droidvm/drivers (virtio-pci). The kernel
 # links Apple kexts from the IPSW kernelcache, so binaries are uploaded as plain artifacts (no encryption key).
 #
+# This build is unsigned: the owner root policies (verified-root-inputs.tar.gz) and their RSA key are gone. The workflow
+# rewrites the device tree (scripts/disable-owner-verification.py) so the probe and boot manifest are off and
+# NativeVirtioBlock no longer authenticates blocks; the owner mounts stay on for the macOS root.
+#
 # The device's original-class audits read build/reference-candidate/kernel.{macho,json}, a prelinked kernel of the board
 # without its native storage/display drivers. It is kept as the release asset reference-candidate/reference-kernel.tgz;
 # when missing (or with rebuild_reference) it is linked first from a reduced copy of the device
 # repository (scripts/make-reference-device.py) in the same tree.
 #
 # Two kernels per run: root=ios (iPadOS 21H461) and root=macos (macOS 14.6.1 23G93 userland on the same kernel and kexts).
-# They differ only in the owner root policies baked into the kernel: release root-policies and root-policies-macos.
 
 on:
   workflow_dispatch:
@@ -32,11 +35,10 @@ on:
       - 'overlay/droidvm/drivers/**'
       - 'overlay/droidvm/scripts/**'
       - 'scripts/apply-overlay-board.py'
+      - 'scripts/disable-owner-verification.py'
       - '.github/workflows/mainline.yml'
       - 'scripts/make-reference-device.py'
-      - 'scripts/owner-policy-dirs.py'
       - 'scripts/mainline-bootstrap-placeholders.py'
-      - 'scripts/macos-root-probe.py'
 
 permissions:
   contents: write
@@ -52,7 +54,6 @@ jobs:
     env:
       BOARD: droidvm
       LABEL: ${{ matrix.root == 'ios' && 'mainline' || 'mainline-macos' }}
-      POLICIES: ${{ matrix.root == 'ios' && 'root-policies' || 'root-policies-macos' }}
       UNIXNU_REPO: ${{ inputs.unixnu_repo || 'Droid-VM/UniXNU' }}
       UNIXNU_REF: ${{ inputs.unixnu_ref || 'wip/droidvm' }}
       DEVICE_REPO: ${{ inputs.device_repo || 'Droid-VM/UniXNU-droidvm' }}
@@ -107,6 +108,14 @@ jobs:
           rm -rf device-ref/.cache
           ln -s "$PWD/device/.cache" device-ref/.cache
 
+      - name: Disable owner verification
+        # Unsigned build: no verified-root-inputs.tar.gz and no owner key. The device tree of both the reference candidate
+        # and the full build loses the probe archive and the --verified-root driver flags; UniXNU's XNU patches then lose
+        # the boot-manifest requirement of the scratch Data mount.
+        run: |
+          python3 ci/scripts/disable-owner-verification.py device --unixnu UniXNU
+          python3 ci/scripts/disable-owner-verification.py device-ref --unixnu UniXNU
+
       - name: Cache fetched sources
         uses: actions/cache@v4
         with:
@@ -129,18 +138,6 @@ jobs:
           gh api "$api/iokit/DriverKit?ref=xnu-10063.121.3" > "$sources/xnu-driverkit-10063.121.3.json"
           gh api "$api/iokit/DriverKit/crypto?ref=xnu-10063.121.3" > "$sources/xnu-driverkit-crypto-10063.121.3.json"
           gh api "$api/EXTERNAL_HEADERS/TrustCache?ref=xnu-8796.101.5" > "$sources/xnu-trustcache-8796.101.5.json"
-
-      - name: Owner root policies
-        # build/verified-root-{os,systemos} from the owner manifests published as $POLICIES/verified-root-inputs.tar.gz.
-        run: |
-          gh release download "$POLICIES" --repo "$GITHUB_REPOSITORY" --pattern verified-root-inputs.tar.gz --dir "$RUNNER_TEMP"
-          inputs="$RUNNER_TEMP/verified-root-inputs"
-          mkdir -p "$inputs"
-          tar -xzf "$RUNNER_TEMP/verified-root-inputs.tar.gz" -C "$inputs"
-          python3 ci/scripts/owner-policy-dirs.py "$inputs" "UniXNU/out/$BOARD/tree" "${{ matrix.root }}"
-          if [ "${{ matrix.root }}" = macos ]; then
-            python3 ci/scripts/macos-root-probe.py UniXNU/scripts/build-verified-root-probe.py device/scripts/build-verified-root-probe.py
-          fi
 
       - name: Reference candidate
         working-directory: UniXNU

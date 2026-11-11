@@ -12,3 +12,7 @@ GitHub Actions builds for porting [UniXNU](https://github.com/UniXNU) to QEMU/KV
 - `local/`: local overrides of UniXNU modules, same layout as the UniXNU repository.
 
 Binary artifacts contain components of Apple's kernelcache and are uploaded as plain artifacts (and release assets).
+
+The DroidVM mainline is built unsigned: there is no owner key and no `verified-root-inputs.tar.gz`. `mainline.yml` rewrites
+the device tree with `scripts/disable-owner-verification.py` (probe and boot manifest off, NativeVirtioBlock reads without
+authenticating blocks, owner mounts unchanged). See [docs/unsigned-build.md](docs/unsigned-build.md).

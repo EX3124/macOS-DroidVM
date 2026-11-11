@@ -14,3 +14,7 @@ directory into the device's `patches/xnu` (with the UniXNU patches beside them).
 `stackshot-dump` stops the other cores with the debugger cross-call. ArmCpu leaves a secondary core SIGPdisabled until it took its
 first IPI, and `cpu_signal()` skips such a core silently, so on an SMP guest also pass `armcpu-self-ipi=1` (QEMU/KVM GICv3);
 otherwise a core keeps running during the snapshot and the DEVELOPMENT consistency checks of kern_stackshot.c panic.
+
+`drivers/NativeVirtioBlock` is built without `NATIVE_VERIFIED_BLOCK` in the unsigned mainline
+(`scripts/disable-owner-verification.py`): it reads sectors directly and exports the owner mounts' volume lookup and a
+permissive `native_verified_block_root_authorized()`. Built with `--verified-root` it keeps the VerifiedRoot policy path.
