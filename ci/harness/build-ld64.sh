@@ -44,9 +44,19 @@ if n == 0:
     print("build-ld64: warning: inlined-dylib block not found", file=sys.stderr)
 inp.write_text(patched)
 mrf = src / "src/ld/parsers/macho_relocatable_file.cpp"
-mt = mrf.read_text().replace(
+mt = mrf.read_text()
+mt = mt.replace(
     "char symName[nameLen+2];",
     "std::vector<char> symNameStorage(nameLen+2); char* symName = symNameStorage.data();")
+mt = mt.replace(
+    "pint_t cfiStartsArray[cfiStartsCount+cuLsdaCount];",
+    "std::vector<pint_t> cfiStartsArrayStorage(cfiStartsCount+cuLsdaCount+1); "
+    "pint_t* cfiStartsArray = cfiStartsArrayStorage.data();")
+mt = mt.replace(
+    "uint8_t machOSectsStorage[sizeof(MachOSectionAndSectionClass<P>)*(_machOSectionsCount+2)];",
+    "std::vector<uint8_t> machOSectsStorageStorage("
+    "sizeof(MachOSectionAndSectionClass<P>)*(_machOSectionsCount+2)+1); "
+    "uint8_t* machOSectsStorage = machOSectsStorageStorage.data();")
 mrf.write_text(mt)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
