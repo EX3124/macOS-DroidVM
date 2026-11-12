@@ -69,7 +69,7 @@ clone https://github.com/none24smu/UniXNU.git "$UNIXNU_REF" "$OUT/unixnu" --subm
 
 echo "== ld64 (Apple's open-source linker; Xcode 27 dropped -threaded_starts_section)"
 clone https://github.com/apple-oss-distributions/ld64.git "${LD64_REF:-ld64-951.0.0}" "$OUT/ld64-src" || \
-  clone https://github.com/apple-oss-distributions/ld64.git main "$OUT/ld64-src"
+  clone https://github.com/apple-oss-distributions/ld64.git ld64-711 "$OUT/ld64-src"
 
 echo "== edk2-gunyah (GunyahPkg + DarwinBoot) and the derived GunyahBootPkg"
 clone https://github.com/Droid-VM/edk2-gunyah.git droidvm "$OUT/edk2-gunyah"
