@@ -79,7 +79,16 @@ ln -sfn "$TREE" "$X/xnu-m"
 if [ -d "$OUT/IOStorageFamily/IOKit" ]; then
   cp -R "$OUT/IOStorageFamily/IOKit" "$X/storage-abi/include/"
 else
-  cp -R "$OUT/IOStorageFamily/." "$X/storage-abi/include/"
+  # The public tree may nest the headers (e.g. IOStorageFamily/IOKit/...); locate the one the kext includes.
+  HEADER=$(find "$OUT/IOStorageFamily" -path '*/IOKit/storage/IOBlockStorageDevice.h' -print -quit 2>/dev/null || true)
+  if [ -n "$HEADER" ]; then
+    IOKIT=${HEADER%/storage/IOBlockStorageDevice.h}
+    mkdir -p "$X/storage-abi/include"
+    rm -rf "$X/storage-abi/include/IOKit"
+    cp -R "$IOKIT" "$X/storage-abi/include/IOKit"
+  else
+    echo "warning: IOBlockStorageDevice.h not in IOStorageFamily" >&2
+  fi
 fi
 : > "$X/storage-abi/include/TargetConditionals.h"
 
