@@ -68,12 +68,12 @@ echo "== UniXNU harness sources (none24smu/UniXNU @ ios26)"
 clone https://github.com/none24smu/UniXNU.git "$UNIXNU_REF" "$OUT/unixnu" --submodules
 
 echo "== ld64 (Apple's open-source linker; Xcode 27 dropped -threaded_starts_section)"
-# ld64-951.0.0 does not exist as a ref; ld64-711 is the version the xnu port used. Clone the repository first and
+# ld64-951.0.0 does not exist as a ref; ld64-609 is the version the xnu port used. Clone the repository first and
 # then fetch the tag explicitly, so a missing ref cannot leave a half-checked-out tree behind.
 if [ ! -d "$OUT/ld64-src/.git" ]; then
   git clone --filter=blob:none https://github.com/apple-oss-distributions/ld64.git "$OUT/ld64-src"
 fi
-git -C "$OUT/ld64-src" fetch --depth 1 origin "${LD64_REF:-ld64-711}"
+git -C "$OUT/ld64-src" fetch --depth 1 origin "${LD64_REF:-ld64-609}"
 git -C "$OUT/ld64-src" checkout -q --detach FETCH_HEAD
 [ -d "$OUT/ld64-src/ld64.xcodeproj" ] || echo "warning: ld64 checkout has no ld64.xcodeproj" >&2
 
