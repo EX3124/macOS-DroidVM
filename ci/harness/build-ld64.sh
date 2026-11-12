@@ -19,9 +19,10 @@ find_binary() {
   find "$1" -type f -perm -111 \( -name ld64 -o -name ld \) -print -quit 2>/dev/null || true
 }
 
-if [ -d "$SRC/ld64.xcodeproj" ]; then
-  echo "build-ld64: xcodebuild (ld64.xcodeproj)"
-  xcodebuild -project "$SRC/ld64.xcodeproj" -target ld64 -configuration Release \
+PROJ=$(find "$SRC" -maxdepth 2 -name 'ld64.xcodeproj' -print -quit 2>/dev/null || true)
+if [ -n "$PROJ" ]; then
+  echo "build-ld64: xcodebuild ($PROJ)"
+  xcodebuild -project "$PROJ" -target ld64 -configuration Release \
     SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
       echo "build-ld64: xcodebuild failed; tail of build.log:" >&2; tail -50 "$OUT/build.log" >&2; exit 1; }
