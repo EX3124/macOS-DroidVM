@@ -175,7 +175,11 @@ if [ -n "$LD_CLASSIC" ]; then
   MAKE+=("LD=$LD_CLASSIC")
   log "using ld-classic for the threaded-starts link: $LD_CLASSIC"
 else
-  fail "no ld-classic in Xcode: the kernel needs __TEXT,__thread_starts (kc-build.py reads it)"
+  # Xcode 27 no longer ships ld-classic; build Apple's open-source ld64, which still supports the flag.
+  bash "$ROOT/ci/harness/build-ld64.sh"
+  LD_CLASSIC=$ROOT/out/harness/ld64/ld
+  MAKE+=("LD=$LD_CLASSIC")
+  log "using built ld64 for the threaded-starts link: $LD_CLASSIC"
 fi
 LD_BASE="-fuse-ld=$LD_CLASSIC $LDX \
 -L$SDK/usr/local/lib/kernel -L$SDK/usr/local/lib/kernel/platform \
