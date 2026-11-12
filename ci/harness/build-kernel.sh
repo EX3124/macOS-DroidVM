@@ -167,15 +167,17 @@ CPU=$X/un/build/platform-12377-arm64e/ArmCpu/libArmCpu.a
 # Xcode 27's ld dropped -threaded_starts_section; the kernel's arm_slide still needs __TEXT,__thread_starts, so link
 # with the bundled ld-classic when the toolchain has it.
 LD_CLASSIC=$(xcrun -f ld-classic 2>/dev/null || true)
+if [ -z "$LD_CLASSIC" ]; then
+  LD_CLASSIC=$(find /Applications/Xcode*.app -path '*Toolchains/*/usr/bin/ld-classic' -type f -print -quit 2>/dev/null || true)
+fi
 LDX="-Wl,-no_fixup_chains -Wl,-threaded_starts_section"
 if [ -n "$LD_CLASSIC" ]; then
   MAKE+=("LD=$LD_CLASSIC")
   log "using ld-classic for the threaded-starts link: $LD_CLASSIC"
 else
-  LDX="-Wl,-no_fixup_chains"
-  log "warning: no ld-classic; linking without -threaded_starts_section"
+  fail "no ld-classic in Xcode: the kernel needs __TEXT,__thread_starts (kc-build.py reads it)"
 fi
-LD_BASE="$LDX \
+LD_BASE="-fuse-ld=$LD_CLASSIC $LDX \
 -L$SDK/usr/local/lib/kernel -L$SDK/usr/local/lib/kernel/platform \
 -L$FAKE/usr/local/lib/kernel -L$FAKE/usr/local/lib/kernel/platform -lfirehose_kernel"
 "${MAKE[@]}" LD_KERNEL_ARCHIVES="$LD_BASE -Wl,-force_load,$DT -Wl,-force_load,$CPU" || true
