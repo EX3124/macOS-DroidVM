@@ -46,7 +46,7 @@ inp.write_text(patched)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
-    SDKROOT=macosx HEADER_SEARCH_PATHS="$ROOT/ci/harness/tapi-stub" TAPI_HEADER_SEARCH_PATHS= \
+    SDKROOT=macosx HEADER_SEARCH_PATHS="$ROOT/ci/harness/tapi-stub $ROOT/ci/harness/sdk-stub" TAPI_HEADER_SEARCH_PATHS= \
     MACOSX_DEPLOYMENT_TARGET=12.0 \
     SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=x86_64 VALID_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
