@@ -23,11 +23,16 @@ PROJ=$(find "$SRC" -maxdepth 2 -name 'ld64.xcodeproj' -print -quit 2>/dev/null |
 if [ -n "$PROJ" ]; then
   # The project's target name changed across tags; ask the project instead of assuming "ld64".
   LIST=$(xcodebuild -project "$PROJ" -list 2>/dev/null || true)
-  TARGET=$(printf '%s\n' "$LIST" | awk '/Targets:/{t=1;next} t && /^[[:space:]]+[A-Za-z0-9_.-]+$/{print $1; exit}')
-  [ -n "$TARGET" ] || TARGET=ld64
+  TARGET=$(printf '%s\n' "$LIST" | awk '/Targets:/{t=1;next} t && /^[[:space:]]+ld$/{gsub(/^[ \t]+/,""); print; exit}')
+  if [ -z "$TARGET" ]; then
+    TARGET=$(printf '%s\n' "$LIST" | awk '/Targets:/{t=1;next} t && /^[[:space:]]+[A-Za-z0-9_.-]+$/{gsub(/^[ \t]+/,""); print; exit}')
+  fi
+  [ -n "$TARGET" ] || TARGET=ld
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET)"
   printf '%s\n' "$LIST" | sed -n '1,40p'
+  # The project asks for Apple's internal SDK and for DT_TOOLCHAIN_DIR-derived header paths; override both.
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
+    SDKROOT=macosx HEADER_SEARCH_PATHS= TAPI_HEADER_SEARCH_PATHS= \
     SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
       echo "build-ld64: xcodebuild failed; tail of build.log:" >&2; tail -50 "$OUT/build.log" >&2; exit 1; }
