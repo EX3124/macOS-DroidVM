@@ -87,6 +87,11 @@ if "BlobCore *clone() const" not in bt:
         "\t}")
     bt = bt.replace("#include <stdint.h>", "#include <stdint.h>\n#include <stdlib.h>\n#include <string.h>", 1)
     blob.write_text(bt)
+mdf = src / "src/ld/parsers/macho_dylib_file.cpp"
+dt = mdf.read_text().replace(
+    "char frname[strlen(leafName)+32];",
+    "std::vector<char> frnameStorage(strlen(leafName)+32); char* frname = frnameStorage.data();")
+mdf.write_text(dt)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
