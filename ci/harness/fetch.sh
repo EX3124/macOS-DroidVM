@@ -76,20 +76,10 @@ python3 "$ROOT/ci/darwinboot/make-gunyah-boot.py" "$OUT/edk2-gunyah" "$ROOT/sour
 
 echo "== paths the k27 kext builders expect"
 ln -sfn "$TREE" "$X/xnu-m"
-if [ -d "$OUT/IOStorageFamily/IOKit" ]; then
-  cp -R "$OUT/IOStorageFamily/IOKit" "$X/storage-abi/include/"
-else
-  # The public tree may nest the headers (e.g. IOStorageFamily/IOKit/...); locate the one the kext includes.
-  HEADER=$(find "$OUT/IOStorageFamily" -path '*/IOKit/storage/IOBlockStorageDevice.h' -print -quit 2>/dev/null || true)
-  if [ -n "$HEADER" ]; then
-    IOKIT=${HEADER%/storage/IOBlockStorageDevice.h}
-    mkdir -p "$X/storage-abi/include"
-    rm -rf "$X/storage-abi/include/IOKit"
-    cp -R "$IOKIT" "$X/storage-abi/include/IOKit"
-  else
-    echo "warning: IOBlockStorageDevice.h not in IOStorageFamily" >&2
-  fi
-fi
+# The public IOStorageFamily checkout keeps its headers flat (IOBlockStorageDevice.h at the root); the kext includes
+# them as <IOKit/storage/...>, so lay them out that way.
+mkdir -p "$X/storage-abi/include/IOKit/storage"
+cp "$OUT/IOStorageFamily"/*.h "$X/storage-abi/include/IOKit/storage/"
 : > "$X/storage-abi/include/TargetConditionals.h"
 
 if [ -n "${KDK_URL:-}" ]; then
