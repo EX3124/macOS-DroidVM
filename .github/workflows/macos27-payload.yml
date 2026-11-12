@@ -129,6 +129,7 @@ jobs:
         run: |
           mkdir -p collect
           cp out/k27/kernel-k27.macho out/k27/kc-k27.bin out/k27/kc-k27.natives.json collect/ 2>/dev/null || true
+          cp out/k27/kc-build.log collect/ 2>/dev/null || true
           cp out/kc/kc27.bin collect/kc27.bin 2>/dev/null || true
           cp artifacts/boot-inputs/DarwinBoot.efi collect/ 2>/dev/null || true
           sha256sum collect/* 2>/dev/null || true

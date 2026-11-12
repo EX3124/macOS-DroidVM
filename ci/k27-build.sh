@@ -109,7 +109,11 @@ if [ "$stage" = kc ] || [ "$stage" = all ]; then
   case " ${K27_KEXTS:-} " in
     *" audio "*) export MACOS_AUDIO=1 ;;
   esac
-  K27_NO_BOOT=1 bash k27/try.sh 1 --
+  if ! K27_NO_BOOT=1 bash k27/try.sh 1 --; then
+    echo "k27-build: kc-build failed; tail of out/k27/kc-build.log:" >&2
+    tail -40 out/k27/kc-build.log >&2 || true
+    exit 1
+  fi
   test -s out/k27/kc-k27.bin
   ls -la out/k27/kc-k27.bin out/k27/kc-k27.natives.json 2>/dev/null || true
 fi
