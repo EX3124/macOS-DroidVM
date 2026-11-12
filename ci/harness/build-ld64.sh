@@ -31,8 +31,17 @@ if [ -n "$PROJ" ]; then
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET)"
   printf '%s\n' "$LIST" | sed -n '1,40p'
   # The project asks for Apple's internal SDK and for DT_TOOLCHAIN_DIR-derived header paths; override both.
+  # ld64 wants libtapi headers; the project's TAPI_HEADER_SEARCH_PATHS used DT_TOOLCHAIN_DIR, so derive it from
+  # the installed tapi tool instead.
+  TAPI_TOOL=$(xcrun -f tapi 2>/dev/null || true)
+  TAPI_INC=""
+  if [ -n "$TAPI_TOOL" ]; then TAPI_INC=$(dirname "$TAPI_TOOL")/../include; fi
+  if [ -z "$TAPI_INC" ] || [ ! -f "$TAPI_INC/tapi/tapi.h" ]; then
+    TAPI_INC=$(find /Applications/Xcode*.app -path '*/include/tapi/tapi.h' -print -quit 2>/dev/null | sed 's#/tapi/tapi.h##')
+  fi
+  echo "build-ld64: TAPI headers at $TAPI_INC"
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
-    SDKROOT=macosx HEADER_SEARCH_PATHS= TAPI_HEADER_SEARCH_PATHS= \
+    SDKROOT=macosx HEADER_SEARCH_PATHS= TAPI_HEADER_SEARCH_PATHS="$TAPI_INC" \
     MACOSX_DEPLOYMENT_TARGET=12.0 \
     SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
