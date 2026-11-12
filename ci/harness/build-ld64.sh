@@ -33,6 +33,7 @@ if [ -n "$PROJ" ]; then
   # The project asks for Apple's internal SDK and for DT_TOOLCHAIN_DIR-derived header paths; override both.
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
     SDKROOT=macosx HEADER_SEARCH_PATHS= TAPI_HEADER_SEARCH_PATHS= \
+    MACOSX_DEPLOYMENT_TARGET=12.0 \
     SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
       echo "build-ld64: xcodebuild failed; tail of build.log:" >&2; tail -50 "$OUT/build.log" >&2; exit 1; }
