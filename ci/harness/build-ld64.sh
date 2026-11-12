@@ -73,6 +73,20 @@ mt = mt.replace(
     "std::vector<uint32_t> sortedSymbolIndexesStorage(_symbolsInSections ? _symbolsInSections : 1); "
     "uint32_t* sortedSymbolIndexes = sortedSymbolIndexesStorage.data();")
 mrf.write_text(mt)
+blob = src / "src/ld/code-sign-blobs/blob.h"
+bt = blob.read_text()
+if "BlobCore *clone() const" not in bt:
+    bt = bt.replace(
+        "void length(size_t size)\t\t\t{ mLength = size; }",
+        "void length(size_t size)\t\t\t{ mLength = size; }\n"
+        "\tBlobCore *clone() const\n"
+        "\t{\n"
+        "\t\tBlobCore *result = (BlobCore *)::malloc(length());\n"
+        "\t\tif (result != NULL) ::memcpy(result, this, length());\n"
+        "\t\treturn result;\n"
+        "\t}")
+    bt = bt.replace("#include <stdint.h>", "#include <stdint.h>\n#include <stdlib.h>\n#include <string.h>", 1)
+    blob.write_text(bt)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
