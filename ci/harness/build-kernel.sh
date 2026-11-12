@@ -232,8 +232,9 @@ rm -f "$OBJ/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
   LD_KERNEL_ARCHIVES="$LD_BASE -Wl,-force_load,$DT -Wl,-force_load,$CPU" \
   XNU_EXTERNAL_KERNEL_ARCHIVES="$DT $CPU"
 
-KERNEL=$OBJ/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf
-[ -s "$KERNEL" ] || fail "no kernel at $KERNEL"
+KERNEL=$(find "$OBJ/DEVELOPMENT_ARM64_BCM2837" -maxdepth 1 \
+  \( -name 'kernel.development*.unstripped.noctf' -o -name 'mach.development*.unstripped.noctf' \) -print -quit)
+[ -n "$KERNEL" ] && [ -s "$KERNEL" ] || fail "no kernel mach-o in $OBJ/DEVELOPMENT_ARM64_BCM2837"
 cp "$KERNEL" "$ROOT/out/k27/kernel-k27.macho"
 ls -la "$ROOT/out/k27/kernel-k27.macho"
 echo "build-kernel: done"
