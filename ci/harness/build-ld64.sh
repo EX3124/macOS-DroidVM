@@ -16,7 +16,7 @@ fi
 [ -d "$SRC" ] || { echo "build-ld64: missing $SRC (run ci/harness/fetch.sh)" >&2; exit 1; }
 
 find_binary() {
-  find "$1" -type f -perm -111 \( -name ld64 -o -name ld \) -print -quit 2>/dev/null || true
+  find "$1" -type f \( -name ld -o -name ld64 \) -print -quit 2>/dev/null || true
 }
 
 PROJ=$(find "$SRC" -maxdepth 2 -name 'ld64.xcodeproj' -print -quit 2>/dev/null || true)
@@ -47,6 +47,14 @@ if [ -n "$PROJ" ]; then
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
       echo "build-ld64: xcodebuild failed; tail of build.log:" >&2; tail -50 "$OUT/build.log" >&2; exit 1; }
   BIN=$(find_binary "$OUT/sym")
+  if [ -z "$BIN" ]; then BIN=$(find_binary "$OUT"); fi
+  if [ -z "$BIN" ]; then BIN=$(find_binary "$SRC"); fi
+  if [ -z "$BIN" ]; then
+    echo "build-ld64: xcodebuild produced no ld binary; search dirs:" >&2
+    find "$OUT" "$SRC" -maxdepth 4 -type f -perm -111 2>/dev/null | head -30 >&2 || true
+    tail -30 "$OUT/build.log" >&2 || true
+    exit 1
+  fi
 else
   echo "build-ld64: make"
   make -C "$SRC" -j"$(sysctl -n hw.ncpu)" >"$OUT/build.log" 2>&1 || {
