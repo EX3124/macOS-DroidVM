@@ -43,7 +43,7 @@ if [ -n "$PROJ" ]; then
   xcodebuild -project "$PROJ" -target "$TARGET" -configuration Release \
     SDKROOT=macosx HEADER_SEARCH_PATHS= TAPI_HEADER_SEARCH_PATHS="$TAPI_INC" \
     MACOSX_DEPLOYMENT_TARGET=12.0 \
-    SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+    SYMROOT="$OUT/sym" OBJROOT="$OUT/obj" ARCHS=x86_64 VALID_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
     CODE_SIGNING_ALLOWED=NO >"$OUT/build.log" 2>&1 || {
       echo "build-ld64: xcodebuild failed; tail of build.log:" >&2; tail -50 "$OUT/build.log" >&2; exit 1; }
   BIN=$(find_binary "$OUT/sym")

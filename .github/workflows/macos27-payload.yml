@@ -108,7 +108,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out/harness/ld64
-          key: ld64-530-arm64
+          key: ld64-530-x86_64
 
       - name: Public harness inputs (xnu + patches, KDK, libplatform/libdispatch, UniXNU scripts)
         run: bash ci/harness/fetch.sh
