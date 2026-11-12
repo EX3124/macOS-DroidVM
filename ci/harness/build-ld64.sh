@@ -57,6 +57,13 @@ mt = mt.replace(
     "std::vector<uint8_t> machOSectsStorageStorage("
     "sizeof(MachOSectionAndSectionClass<P>)*(_machOSectionsCount+2)+1); "
     "uint8_t* machOSectsStorage = machOSectsStorageStorage.data();")
+mt = re.sub(
+    r'#define STACK_ALLOC_IF_SMALL.*?\n\n',
+    "#define STACK_ALLOC_IF_SMALL(_type, _name, _actual_count, _maxCount) \\\n"
+    "\tuint32_t _name##_count = _actual_count ? _actual_count : 1; \\\n"
+    "\tstd::vector<_type> _name##_storage(_name##_count); \\\n"
+    "\t_type* _name = _name##_storage.data();\n\n",
+    mt, count=1, flags=re.S)
 mrf.write_text(mt)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
