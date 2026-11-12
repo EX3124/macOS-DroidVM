@@ -64,6 +64,14 @@ mt = re.sub(
     "\tstd::vector<_type> _name##_storage(_name##_count); \\\n"
     "\t_type* _name = _name##_storage.data();\n\n",
     mt, count=1, flags=re.S)
+mt = mt.replace(
+    "uint32_t sortedSectionIndexes[_machOSectionsCount];",
+    "std::vector<uint32_t> sortedSectionIndexesStorage(_machOSectionsCount ? _machOSectionsCount : 1); "
+    "uint32_t* sortedSectionIndexes = sortedSectionIndexesStorage.data();")
+mt = mt.replace(
+    "uint32_t sortedSymbolIndexes[_symbolsInSections];",
+    "std::vector<uint32_t> sortedSymbolIndexesStorage(_symbolsInSections ? _symbolsInSections : 1); "
+    "uint32_t* sortedSymbolIndexes = sortedSymbolIndexesStorage.data();")
 mrf.write_text(mt)
 PY
   echo "build-ld64: xcodebuild ($PROJ, target $TARGET, TAPI stubbed)"
